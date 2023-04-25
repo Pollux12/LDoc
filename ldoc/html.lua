@@ -169,8 +169,8 @@ function html.generate_output(ldoc, args, project)
       end
    end
 
--- these references are never from the index...?
-function ldoc.source_ref (fun)
+   -- these references are never from the index...?
+   function ldoc.source_ref (fun)
       local modname = fun.module.name
       local pack,name = tools.split_dotted_name(modname)
       if not pack then
@@ -190,7 +190,7 @@ function ldoc.source_ref (fun)
       end
       -- Module-level items:
       local name = item.display_name or item.name
-      if item.type == 'function' or item.type == 'lfunction' then
+      if item.type == 'function' or item.type == 'lfunction' or item.type == "hook" then
          if not ldoc.no_space_before_args then
             name = name..' '
          end
@@ -354,6 +354,20 @@ function ldoc.source_ref (fun)
 
    check_directory(args.dir) -- make sure output directory is ok
 
+   -- project icon
+   if ldoc.icon then
+      local dir_data = args.dir .. '/data'
+
+      if not path.isdir(dir_data) then
+         -- luacheck: push ignore lfs
+         lfs.mkdir(dir_data)
+         -- luacheck: pop
+      end
+
+      local file = require'pl.file'
+      file.copy(ldoc.icon, dir_data)
+   end
+
    args.dir = args.dir .. path.sep
 
    if css then -- has CSS been copied?
@@ -425,4 +439,3 @@ function ldoc.source_ref (fun)
 end
 
 return html
-

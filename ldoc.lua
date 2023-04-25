@@ -161,6 +161,11 @@ local function setup_kinds ()
    ModuleMap:add_kind(lookup('lfunction','Local Functions','Parameters'))
    ModuleMap:add_kind(lookup('annotation','Issues'))
 
+   ProjectMap:add_kind(lookup('panel', 'Panels'))
+   ProjectMap:add_kind(lookup('item', 'Items'))
+   ProjectMap:add_kind(lookup('sent', 'Entities'))
+   ProjectMap:add_kind(lookup('swep', 'Weapons'))
+   ProjectMap:add_kind(lookup('stool', 'Tools'))
    ProjectMap:add_kind(lookup('module','Modules'))
    ProjectMap:add_kind(lookup('script','Scripts'))
    ProjectMap:add_kind(lookup('classmod','Classes'))
@@ -195,6 +200,7 @@ end
 ldoc.alias('tparam',{'param',modifiers={type="$1"}})
 ldoc.alias('treturn',{'return',modifiers={type="$1"}})
 ldoc.alias('tfield',{'field',modifiers={type="$1"}})
+ldoc.alias('chainable',{'return',modifiers={type='self'}})
 
 function ldoc.tparam_alias (name,type)
    type = type or name
@@ -241,10 +247,10 @@ end
 
 local ldoc_contents = {
    'alias','add_language_extension','custom_tags','new_type','add_section', 'tparam_alias',
-   'file','project','title','package','format','output','dir','ext', 'topics',
+   'file','project','title','package','icon','format','output','dir','ext', 'topics',
    'one','style','template','description','examples', 'pretty', 'charset', 'plain',
    'readme','all','manual_url', 'ignore', 'colon', 'sort', 'module_file','vars',
-   'boilerplate','merge', 'wrap', 'not_luadoc', 'template_escape','merge_error_groups',
+   'boilerplate','merge', 'wrap', 'not_luadoc', 'template_escape','merge_error_groups', 'dumbbanners',
    'no_return_or_parms','no_summary','full_description','backtick_references', 'custom_see_handler',
    'no_space_before_args','simple_args_string','parse_extra','no_lua_ref','sort_modules','use_markdown_titles',
    'unqualified', 'custom_display_name_handler', 'kind_names', 'custom_references', 'strip_metamethod_prefix',
@@ -263,7 +269,7 @@ local function loadstr (ldoc,txt)
       chunk,err = utils.load(txt,'config',nil,ldoc)
    else
       -- luacheck: push ignore 113
-      chunk,err = loadin(ldoc,txt)
+      chunk,err = utils.load(txt, 'config', nil, ldoc)
       -- luacheck: pop
    end
    return chunk, err
@@ -420,7 +426,7 @@ local function process_file (f, flist)
    local ext = path.extension(f)
    local ftype = file_types[ext]
    if ftype then
-      if args.verbose then print(f) end
+      if args.verbose then print(f, ftype, args) end
       ftype.extra = ldoc.parse_extra or {}
       local F,err = parse.file(f,ftype,args)
       if err then
@@ -820,12 +826,124 @@ if builtin_style or builtin_template then
    end
 end
 
+-- default icon to nil
+if args.icon == 'none' then args.icon = nil end
+
+local function copy(t, lookup_table)
+	if ( t == nil ) then return nil end
+
+	local out = {}
+	setmetatable( out, debug.getmetatable( t ) )
+	for i, v in pairs( t ) do
+		if ( type(v) ~= "table" ) then
+			out[ i ] = v
+		else
+			lookup_table = lookup_table or {}
+			lookup_table[ t ] = out
+			if ( lookup_table[ v ] ) then
+				out[ i ] = lookup_table[ v ] -- we already copied this table. reuse the copy.
+			else
+				out[ i ] = copy( v, lookup_table ) -- not yet copied. copy it.
+			end
+		end
+	end
+	return out
+end
+
+local pattern_escape_replacements = {
+	["("] = "%(",
+	[")"] = "%)",
+	["."] = "%.",
+	["%"] = "%%",
+	["+"] = "%+",
+	["-"] = "%-",
+	["*"] = "%*",
+	["?"] = "%?",
+	["["] = "%[",
+	["]"] = "%]",
+	["^"] = "%^",
+	["$"] = "%$",
+	["\0"] = "%z"
+}
+
+function string.PatternSafe( str )
+	return ( str:gsub( ".", pattern_escape_replacements ) )
+end
+
 ldoc.log = print
 ldoc.kinds = project
+
+local inheritable = {"Modules", "Classes", "Panels", "Items", "Entities", "Weapons", "Tools"}
+for _, key in ipairs(inheritable) do
+   if project[key] then
+      for cls in project[key]() do
+         local baseclass = type(cls.tags.baseclass) == "table" and cls.tags.baseclass[1] or false
+         if baseclass then
+            print("inhereted class:", cls.name, baseclass)
+         end
+
+         local toadd = {}
+         while baseclass do
+            local nextclass
+            for innerCls in project[key]() do
+               if innerCls.name == baseclass then
+                  nextclass = innerCls
+                  break
+               end
+            end
+
+            if not nextclass then
+               break
+            end
+
+            for _, item in ipairs(nextclass.items) do
+               item = copy(item)
+               if item.name then
+                  item.name = string.gsub(item.name, baseclass:PatternSafe(), cls.name)
+               end
+               -- if item.description then
+               --    item.description = string.format("%s\nInhereted from @{%s}", item.description, baseclass)
+               -- else
+               --    item.description = string.format("Inhereted from @{%s}", baseclass)
+               -- end
+
+               if not item.inheretedFrom then
+                  item.inheretedFrom = baseclass
+                  table.insert(toadd, item)
+               end
+            end
+            baseclass = type(nextclass.tags.baseclass) == "table" and nextclass.tags.baseclass[1] or false
+         end
+
+         for _, item in ipairs(toadd) do
+            if not cls.items.by_name[item.name] then
+               table.insert(cls.items, item)
+               cls.items.by_name[item.name] = item
+               cls.kinds:add(item, cls.items, item.section)
+            end
+         end
+
+         for _, item in ipairs(cls.items) do
+            if item.retgroups then
+               for _, returnGroup in ipairs(item.retgroups) do
+                  for _, returnData in ipairs(returnGroup) do
+                     if returnData.type == "self" and returnData.mods and returnData.mods.type == "self" then
+                        returnData.type = cls.name
+                        returnData.mods.type = cls.name
+                     end
+                  end
+               end
+            end
+         end
+      end
+   end
+end
+
 ldoc.modules = module_list
 ldoc.title = ldoc.title or args.title
 ldoc.project = ldoc.project or args.project
 ldoc.package = args.package:match '%a+' and args.package or nil
+ldoc.icon = ldoc.icon or args.icon
 
 local source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
 if args.testing then

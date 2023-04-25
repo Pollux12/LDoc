@@ -199,7 +199,9 @@ local function parse_file(fname, lang, package, args)
 
    local function add_module(tags,module_found,old_style)
       tags:add('name',module_found)
-      tags:add('class','module')
+      if not tags:get('class') then
+         tags:add('class', 'module')
+      end
       local item = F:new_item(tags,lineno())
       item.old_style = old_style
       module_item = item
@@ -212,6 +214,15 @@ local function parse_file(fname, lang, package, args)
       -- hack to deal with boilerplate inside Lua block comments
       if v:match '%s*%-%-%[%[' then lang:grab_block_comment(v,tok) end
       t,v = tnext(tok)
+   end
+   -- skip over dumb banners
+   if args.dumbbanners and v:match'%s*%-%-%[%[%-%-%-+' then
+      print("skipping dumb banner", v)
+      -- hack to deal with boilerplate inside Lua block comments
+      if v:match'%s*%-%-%[%[' then
+         lang:grab_block_comment(v, tok)
+      end
+      t, v = tnext(tok)
    end
    if t == '#' then -- skip Lua shebang line, if present
       while t and t ~= 'comment' do t,v = tnext(tok) end
@@ -247,10 +258,16 @@ local function parse_file(fname, lang, package, args)
    while t do
       if t == 'comment' then
          local comment = {}
+
          local ldoc_comment,block = lang:start_comment(v)
 
          if ldoc_comment and block then
             t,v = lang:grab_block_comment(v,tok)
+         end
+
+         if args.dumbbanners and ldoc_comment and v:match'%s*%-%-%[%[%-%-%-+' then
+	         print("skipping dumb banner", v)
+            t, v = tnext(tok)
          end
 
          if lang:empty_comment(v)  then -- ignore rest of empty start comments
@@ -291,7 +308,9 @@ local function parse_file(fname, lang, package, args)
 
             if item_follows or comment_contains_tags(comment,args) then
                tags = extract_tags(comment,args)
-
+               if tags.class and tags.name == "" then
+                  tags.name = nil
+               end
                -- explicitly named @module (which is recommended)
                if doc.project_level(tags.class) then
                   module_found = tags.name
@@ -351,17 +370,23 @@ local function parse_file(fname, lang, package, args)
                F:warning('definition cannot be parsed - '..parse_error)
             end
          end
+
          -- some hackery necessary to find the module() call
          if not module_found and ldoc_comment then
             local old_style
             module_found,t,v = lang:find_module(tok,t,v)
             -- right, we can add the module object ...
             old_style = module_found ~= nil
+            local module_type
             if not module_found or module_found == '...' then
                -- we have to guess the module name
-               module_found = tools.this_module_name(package,fname)
+               module_found, module_type = tools.this_module_name(package, fname)
             end
             if not tags then tags = extract_tags(comment,args) end
+
+            if module_type and not tags:get("class") then
+               tags:add('class', module_type)
+            end
             add_module(tags,module_found,old_style)
             tags = nil
             if not t then
@@ -398,6 +423,27 @@ local function parse_file(fname, lang, package, args)
                tags:add('name',fp)
                tags:add('class','field')
             end
+
+            if tags and tags.class and type(tags.class) == "table" and #tags.class == 2 then
+               local class = tags.class
+
+               if class[1] ~= class[2] and ((class[1] == "function" or class[2] == "function") and (class[1] == "hook" or class[2] == "hook")) then
+                  tags.class = "hook"
+
+                  for _, name in ipairs(tags.name) do
+                     if name ~= "" then
+                        tags.name = name
+                        break
+                     end
+                  end
+               end
+            end
+
+            if not tags.realm then
+               tag = tools.find_realm(fname)
+               tags.realm = tag or "shared"
+            end
+
             if tags.name then
                current_item = F:new_item(tags,line)
                current_item.inferred = item_follows ~= nil
@@ -417,6 +463,7 @@ local function parse_file(fname, lang, package, args)
 end
 
 function parse.file(name,lang, args)
+   if args.verbose then print(name,lang,args.package,args) end
    local F,err = parse_file(name,lang,args.package,args)
    if err or not F then return F,err end
    local ok,err = xpcall(function() F:finish() end,debug.traceback)

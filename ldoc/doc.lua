@@ -30,6 +30,7 @@ local known_tags = {
    ['local'] = 'N', export = 'N', private = 'N', constructor = 'N', static = 'N',include = 'S',
    -- project-level
    module = 'T', script = 'T', example = 'T', topic = 'T', submodule='T', classmod='T', file='T',
+   panel = 'T', item = 'T', sent = 'T', swep = 'T', stool = 'T',
    -- module-level
    ['function'] = 'T', lfunction = 'T', table = 'T', section = 'T', type = 'T',
    annotation = 'T', factory = 'T';
@@ -43,6 +44,11 @@ known_tags._project_level = {
    topic = true,
    submodule = true,
    classmod = true,
+   panel = true,
+   item = true,
+   sent = true,
+   swep = true,
+   stool = true,
    file = true,
 }
 
@@ -50,10 +56,18 @@ known_tags._code_types = {
    module = true,
    script = true,
    classmod = true,
+   panel = true,
+   item = true,
+   sent = true,
+   swep = true,
+   stool = true,
 }
 
 known_tags._presentation_names = {
    classmod = 'Class',
+   sent = 'Entity',
+   swep = 'Weapon',
+   stool = 'Tool',
 }
 
 known_tags._module_info = {

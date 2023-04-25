@@ -230,7 +230,9 @@ function M.check_directory(d)
 end
 
 function M.check_file (f,original)
-   if not path.exists(f) or path.getmtime(original) > path.getmtime(f) then
+    if not path.exists(f)
+       or not path.exists(original)
+       or path.getmtime(original) > path.getmtime(f) then
       local text,err = utils.readfile(original)
       local _
       if text then
@@ -256,6 +258,25 @@ function M.name_of (lpath)
    return lpath
 end
 
+function M.find_realm(lpath)
+   lpath = utils.escape(lpath)
+   lpath = lpath:gsub(path.sep, '.')
+
+   if lpath:find("%.cl_+") then
+      return "client"
+   elseif lpath:find("%.sv_") then
+      return "server"
+   elseif lpath:find("%.sh_") then
+      return "shared"
+   elseif lpath:find("%.init") then
+      return "server"
+   elseif lpath:find("%.shared") then
+      return "client"
+   end
+
+   return "shared"
+end
+
 function M.this_module_name (basename,fname)
    if basename == '' then
       return M.name_of(fname)
@@ -268,7 +289,51 @@ function M.this_module_name (basename,fname)
    --print('deduce',lpath,cnt,basename)
    if cnt ~= 1 then quit("module(...) name deduction failed: base "..basename.." "..fname) end
    lpath = lpath:gsub(path.sep,'.')
-   return (M.name_of(lpath):gsub('%.init$',''))
+
+   local name = M.name_of(lpath):gsub('%.init$', '')
+   local foundtype = nil
+   local plugin = name:match("^plugins.([%w]+).")
+   local basepath = plugin and ("^plugins." .. plugin .. ".") or "^"
+
+   if name:find(basepath .. "entities.weapons.gmod_tool.stools.") then
+      foundtype = "stool"
+      name = name:gsub(basepath .. "entities.weapons.gmod_tool.stools.", "")
+      -- name = "stool." .. name
+   elseif name:find(basepath .. "entities.weapons.") then
+      foundtype = "swep"
+      name = name:gsub(basepath .. "entities.weapons.", "")
+      name = name:gsub(".shared$", "")
+      name = name:gsub(".init$", "")
+      name = name:gsub(".cl_init$", "")
+   elseif name:find(basepath .. "entities.") then
+      -- name = "swep." .. name
+      foundtype = "sent"
+      name = name:gsub(basepath .. "entities.", "")
+   end
+
+   -- name = "sent." .. name
+   if name:find(".items.") then
+      foundtype = "item"
+      local _, ed = name:find(".items.")
+      name = name:sub(ed + 1)
+      local st = name:find(".sh_%w+$")
+
+      if st then
+         name = name:sub(st + 1)
+      end
+
+      name = name:gsub("^sh_", "")
+      -- name = "item." .. name
+   end
+
+   if name:find(".derma.") then
+      foundtype = "panel"
+      local _, ed = name:find(".derma.")
+      name = name:sub(ed + 1)
+      name = name:gsub("^cl_", "")
+   end
+
+   return name, foundtype
 end
 
 function M.find_existing_module (name, dname, searchfn)
