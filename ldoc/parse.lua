@@ -439,9 +439,14 @@ local function parse_file(fname, lang, package, args)
                end
             end
 
-            if not tags.realm then
-               tag = tools.find_realm(fname)
-               tags.realm = tag or "shared"
+            if tags.state then
+               tags.realm = tags.state
+            end
+
+            if not tags.realm and fname then
+               F:warning("No realm specified, guessing for " .. fname)
+               local realm = tools.find_realm(tostring(fname)) or "shared"
+               tags:add('realm', realm)
             end
 
             if tags.name then

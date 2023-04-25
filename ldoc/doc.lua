@@ -233,6 +233,16 @@ function File:finish()
    local tagged_inside
    self.args = self.args or {}
    for item in items:iter() do
+      if item.tags then
+         if item.tags.state then
+            item.tags.realm = item.tags.state
+         end
+      if not item.tags.realm and fname then
+         F:warning("No realm specified, assuming guessing for " .. fname)
+         local realm = tools.find_realm(tostring(fname)) or "shared"
+         item.tags:add('realm', realm)
+      end
+      end
       if mod_section_type(this_mod) == 'factory' and item.tags then
          local klass = '@{'..this_mod.section.name..'}'
          -- Factory constructors return the object type, and methods all have implicit self argument

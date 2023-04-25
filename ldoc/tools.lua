@@ -258,19 +258,19 @@ function M.name_of (lpath)
    return lpath
 end
 
-function M.find_realm(lpath)
-   lpath = utils.escape(lpath)
-   lpath = lpath:gsub(path.sep, '.')
+function M.find_realm(fpath)
 
-   if lpath:find("%.cl_+") then
+   local epath = fpath:gsub(path.sep, '.')
+
+   if epath:find("%.cl_+") then
       return "client"
-   elseif lpath:find("%.sv_") then
+   elseif epath:find("%.sv_") then
       return "server"
-   elseif lpath:find("%.sh_") then
+   elseif epath:find("%.sh_") then
       return "shared"
-   elseif lpath:find("%.init") then
+   elseif epath:find("%.init") then
       return "server"
-   elseif lpath:find("%.shared") then
+   elseif epath:find("%.shared") then
       return "client"
    end
 
