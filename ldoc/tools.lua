@@ -285,6 +285,13 @@ function M.this_module_name (basename,fname)
    if basename:sub(-1,-1) ~= path.sep then
       basename = basename..path.sep
    end
+
+   if fname:match("plugins") then
+      basename = basename:gsub("gamemode", "plugins")
+   elseif fname:match("entities") then
+      basename = basename:gsub("gamemode", "entities")
+   end
+
    local lpath,cnt = fname:gsub('^'..utils.escape(basename),'')
    --print('deduce',lpath,cnt,basename)
    if cnt ~= 1 then quit("module(...) name deduction failed: base "..basename.." "..fname) end

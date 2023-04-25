@@ -216,13 +216,10 @@ local function parse_file(fname, lang, package, args)
       t,v = tnext(tok)
    end
    -- skip over dumb banners
-   if args.dumbbanners and v:match'%s*%-%-%[%[%-%-%-+' then
-      print("skipping dumb banner", v)
-      -- hack to deal with boilerplate inside Lua block comments
-      if v:match'%s*%-%-%[%[' then
-         lang:grab_block_comment(v, tok)
-      end
-      t, v = tnext(tok)
+   if args.dumbbanners and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
+      -- dumb banners breaking everything
+      if v:match '%s*%-%-%[%[' then lang:grab_block_comment(v,tok) end
+      t,v = tnext(tok)
    end
    if t == '#' then -- skip Lua shebang line, if present
       while t and t ~= 'comment' do t,v = tnext(tok) end
@@ -261,13 +258,16 @@ local function parse_file(fname, lang, package, args)
 
          local ldoc_comment,block = lang:start_comment(v)
 
-         if ldoc_comment and block then
+         if args.dumbbanners and ldoc_comment and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
+            F:warning('Dumb banner being skipped')
             t,v = lang:grab_block_comment(v,tok)
+            ldoc_comment = nil
+            t,v = tnext(tok)
          end
 
-         if args.dumbbanners and ldoc_comment and v:match'%s*%-%-%[%[%-%-%-+' then
-	         print("skipping dumb banner", v)
-            t, v = tnext(tok)
+         if ldoc_comment and block then
+            F:warning('Code block')
+            t,v = lang:grab_block_comment(v,tok)
          end
 
          if lang:empty_comment(v)  then -- ignore rest of empty start comments
