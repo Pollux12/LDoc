@@ -215,9 +215,9 @@ local function parse_file(fname, lang, package, args)
       if v:match '%s*%-%-%[%[' then lang:grab_block_comment(v,tok) end
       t,v = tnext(tok)
    end
-   -- skip over dumb banners
+   -- skip over dumb banners, as they break the parser
    if args.dumbbanners and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
-      -- dumb banners breaking everything
+      F:warning('Dumb banner being skipped, you should still remove them to prevent issues')
       if v:match '%s*%-%-%[%[' then lang:grab_block_comment(v,tok) end
       t,v = tnext(tok)
    end
@@ -258,15 +258,15 @@ local function parse_file(fname, lang, package, args)
 
          local ldoc_comment,block = lang:start_comment(v)
 
+         -- skip over dumb banners, as they break the parser
          if args.dumbbanners and ldoc_comment and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
-            F:warning('Dumb banner being skipped')
+            F:warning('Dumb banner being skipped, you should still remove them to prevent issues')
             t,v = lang:grab_block_comment(v,tok)
             ldoc_comment = nil
             t,v = tnext(tok)
          end
 
          if ldoc_comment and block then
-            F:warning('Code block')
             t,v = lang:grab_block_comment(v,tok)
          end
 
