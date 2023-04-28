@@ -259,7 +259,6 @@ function M.name_of (lpath)
 end
 
 function M.find_realm(fpath)
-
    local epath = fpath:gsub(path.sep, '.')
 
    if epath:find("%.cl_+") then
@@ -271,10 +270,10 @@ function M.find_realm(fpath)
    elseif epath:find("%.init") then
       return "server"
    elseif epath:find("%.shared") then
-      return "client"
+      return "shared"
    end
 
-   return "shared"
+   return nil
 end
 
 function M.this_module_name (basename,fname)
