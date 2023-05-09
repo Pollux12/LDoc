@@ -658,10 +658,19 @@ local modcount = 0
 
 for F in file_list:iter() do
    for mod in F.modules:iter() do
-      if not first_module then first_module = mod end
-      if doc.code_tag(mod.type) then modcount = modcount + 1 end
-      module_list:append(mod)
-      module_list.by_name[mod.name] = mod
+      local count = 0
+      for item in mod.items:iter() do
+         if item.type and item.type ~= "module" then
+            count = count + 1
+         end
+      end
+
+      if not args.dumbbanners or not(count == 0 and #mod.items == 0 and not mod.body) then
+         if not first_module then first_module = mod end
+         if doc.code_tag(mod.type) then modcount = modcount + 1 end
+         module_list:append(mod)
+         module_list.by_name[mod.name] = mod
+      end
    end
 end
 
@@ -669,7 +678,7 @@ for mod in module_list:iter() do
    if not args.module then -- no point if we're just showing docs on the console
       mod:resolve_references(module_list)
    end
-   project:add(mod,module_list)
+   project:add(mod, module_list)
 end
 
 
