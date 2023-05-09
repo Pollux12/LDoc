@@ -421,6 +421,7 @@ end
 -- to find an optional associated config.ld, if not already loaded.
 
 if ldoc.ignore then args.ignore = true end
+if ldoc.dumbbanners then args.dumbbanners = true end
 
 local function process_file (f, flist)
    local ext = path.extension(f)

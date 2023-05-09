@@ -216,10 +216,10 @@ local function parse_file(fname, lang, package, args)
       t,v = tnext(tok)
    end
    -- skip over dumb banners, as they break the parser
-   if args.dumbbanners and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
-      F:warning('Dumb banner being skipped, you should still remove them to prevent issues')
-      if v:match '%s*%-%-%[%[' then lang:grab_block_comment(v,tok) end
-      t,v = tnext(tok)
+   if args.dumbbanners and t == 'comment' and (v:match'%s*%-%-%[%[%-%-%-+' or v:match'%s*%-%-%-%-+') then
+      F:warning('Dumb banner being skipped at start of file, you should still remove them to prevent issues')
+      t, v = lang:grab_block_comment(v, tok)
+      t, v = tnext(tok)
    end
    if t == '#' then -- skip Lua shebang line, if present
       while t and t ~= 'comment' do t,v = tnext(tok) end
@@ -263,6 +263,7 @@ local function parse_file(fname, lang, package, args)
             F:warning('Dumb banner being skipped, you should still remove them to prevent issues')
             t,v = lang:grab_block_comment(v,tok)
             ldoc_comment = nil
+            block = nil
             t,v = tnext(tok)
          end
 
