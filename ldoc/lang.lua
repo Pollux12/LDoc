@@ -118,7 +118,7 @@ end
 
 local function parse_lua_parameters (tags,tok)
    tags.formal_args = tools.get_parameters(tok)
-   tags:add('class','function')
+   tags:add('ldoc_class','function')
 end
 
 local function parse_lua_function_header (tags,tok)
@@ -166,14 +166,14 @@ function Lua:item_follows(t,v,tok)
       elseif t == '{' then -- case [3]
          case = 3
          parser = function(tags,tok)
-            tags:add('class','table')
+            tags:add('ldoc_class','table')
             tags:add('name',name)
             parse_lua_table (tags,tok)
          end
       else -- case [4]
          case = 4
          parser = function(tags)
-            tags:add('class','field')
+            tags:add('ldoc_class','field')
             tags:add('name',name)
          end
       end
@@ -188,7 +188,7 @@ function Lua:item_follows(t,v,tok)
          -- return {...}
          case = 5
          parser = function(tags,tok)
-            tags:add('class','table')
+            tags:add('ldoc_class','table')
             parse_lua_table(tags,tok)
          end
       else
@@ -206,7 +206,7 @@ end
 -- Otherwise, this is called. Currrently only tries to fill in the fields
 -- of a table from a table definition as identified above
 function Lua:parse_extra (tags,tok,case)
-   if tags.class == 'table' and not tags.field and case == 3 then
+   if tags.ldoc_class == 'table' and not tags.field and case == 3 then
       parse_lua_table(tags,tok)
    end
 end
@@ -229,13 +229,13 @@ end
 
 function Lua:parse_module_modifier (tags, tok, F)
    if tags.usage then
-      if tags.class ~= 'field' then return nil,"cannot deduce @usage" end
+      if tags.ldoc_class ~= 'field' then return nil,"cannot deduce @usage" end
       local t1= tnext(tok)
       if t1 ~= '[' then return nil, t1..' '..': not a long string' end
       local _, v = tools.grab_block_comment('',tok,'%]%]')
       return true, v, 'usage'
    elseif tags.export then
-      if tags.class ~= 'table' then return nil, "cannot deduce @export" end
+      if tags.ldoc_class ~= 'table' then return nil, "cannot deduce @export" end
       for f in tags.formal_args:iter() do
          if not self:is_private_var(f) then
             F:export_item(f)
@@ -307,7 +307,7 @@ function CC:item_follows (t,v,tok)
          if not tags.name then
             tags:add('name',name)
          end
-         tags:add('class','function')
+         tags:add('ldoc_class','function')
          if t == '(' then
             tags.formal_args,t,_ = tools.get_parameters(tok,')',',',self)
             if return_type ~= 'void' then
@@ -345,12 +345,12 @@ function Moon:item_follows (t,v,tok)
    end
    if t == 'iden' then
       local name,t,v = tools.get_fun_name(tok,v,'')
-      if name == 'class' then
+      if name == 'ldoc_class' then
          local _
          name,_,_ = tools.get_fun_name(tok,v,'')
          -- class!
          return function(tags,tok)
-            tags:add('class','type')
+            tags:add('ldoc_class','type')
             tags:add('name',name)
          end
       elseif t == '=' or t == ':' then -- function/method
@@ -366,7 +366,7 @@ function Moon:item_follows (t,v,tok)
                tags.formal_args = List()
             end
             t,_ = tnext(tok)
-            tags:add('class','function')
+            tags:add('ldoc_class','function')
             if t ~= '>' then
                tags.static = true
             end

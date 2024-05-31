@@ -86,7 +86,7 @@ function Tags.new (t,name)
    t._order = List()
    local tags = setmetatable(t,Tags)
    if name then
-      tags:add('class',class)
+      tags:add('ldoc_class',class)
       tags:add('name',name)
    end
    return tags
@@ -199,8 +199,8 @@ local function parse_file(fname, lang, package, args)
 
    local function add_module(tags,module_found,old_style)
       tags:add('name',module_found)
-      if not tags:get('class') then
-         tags:add('class', 'module')
+      if not tags:get('ldoc_class') then
+         tags:add('ldoc_class', 'module')
       end
       local item = F:new_item(tags,lineno())
       item.old_style = old_style
@@ -309,11 +309,11 @@ local function parse_file(fname, lang, package, args)
 
             if item_follows or comment_contains_tags(comment,args) then
                tags = extract_tags(comment,args)
-               if tags.class and tags.name == "" then
+               if tags.ldoc_class and tags.name == "" then
                   tags.name = nil
                end
                -- explicitly named @module (which is recommended)
-               if doc.project_level(tags.class) then
+               if doc.project_level(tags.ldoc_class) then
                   module_found = tags.name
                   -- might be a module returning a single function!
                   if tags.param or tags['return'] then
@@ -321,7 +321,7 @@ local function parse_file(fname, lang, package, args)
                      local name = tags.name
                      tags.param = nil
                      tags['return'] = nil
-                     tags['class'] = nil
+                     tags['ldoc_class'] = nil
                      tags['name'] = nil
                      add_module(tags,name,false)
                      tags = {
@@ -339,13 +339,17 @@ local function parse_file(fname, lang, package, args)
                -- Watch out for the case where there are field or param tags
                -- but no class, since these will be fixed up later as module/class
                -- entities
-               if (tags.field or tags.param) and not tags.class then
+               if (tags.field or tags.param) and not tags.ldoc_class then
                   parse_error = false
                end
                if tags.name then
-                  if not tags.class then
+                  if not tags.ldoc_class then
                      F:warning("no type specified, assuming function: '"..tags.name.."'")
-                     tags:add('class','function')
+                     if tags.add then
+                        tags:add('ldoc_class','function')
+                     else
+                        tags["ldoc_class"] = "function"
+                     end
                   end
                   item_follows, is_local, parse_error = false, false, false
                elseif args.no_args_infer then
@@ -385,8 +389,8 @@ local function parse_file(fname, lang, package, args)
             end
             if not tags then tags = extract_tags(comment,args) end
 
-            if module_type and not tags:get("class") then
-               tags:add('class', module_type)
+            if module_type and not tags:get("ldoc_class") then
+               tags:add('ldoc_class', module_type)
             end
             add_module(tags,module_found,old_style)
             tags = nil
@@ -414,7 +418,7 @@ local function parse_file(fname, lang, package, args)
                tags:add('local',true)
             end
             -- support for standalone fields/properties of classes/modules
-            if (tags.field or tags.param) and not tags.class then
+            if (tags.field or tags.param) and not tags.ldoc_class then
                -- the hack is to take a subfield and pull out its name,
                -- (see Tag:add above) but let the subfield itself go through
                -- with any modifiers.
@@ -422,14 +426,14 @@ local function parse_file(fname, lang, package, args)
                if type(fp) == 'table' then fp = fp[1] end
                fp = tools.extract_identifier(fp)
                tags:add('name',fp)
-               tags:add('class','field')
+               tags:add('ldoc_class','field')
             end
 
-            if tags and tags.class and type(tags.class) == "table" and #tags.class == 2 then
-               local class = tags.class
+            if tags and tags.ldoc_class and type(tags.ldoc_class) == "table" and #tags.ldoc_class == 2 then
+               local class = tags.ldoc_class
 
                if class[1] ~= class[2] and ((class[1] == "function" or class[2] == "function") and (class[1] == "hook" or class[2] == "hook")) then
-                  tags.class = "hook"
+                  tags.ldoc_class = "hook"
 
                   for _, name in ipairs(tags.name) do
                      if name ~= "" then
@@ -447,13 +451,13 @@ local function parse_file(fname, lang, package, args)
             if not tags.realm and fname then
                F:warning("No realm specified, guessing for " .. fname)
                local realm = tools.find_realm(tostring(fname)) or "shared"
-               tags:add('realm', realm)
+               tags.realm = realm
             end
 
             if tags.name then
                current_item = F:new_item(tags,line)
                current_item.inferred = item_follows ~= nil
-               if doc.project_level(tags.class) then
+               if doc.project_level(tags.ldoc_class) then
                   module_item = current_item
                end
             end

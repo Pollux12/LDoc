@@ -24,7 +24,7 @@ local TAG_MULTI,TAG_ID,TAG_SINGLE,TAG_TYPE,TAG_FLAG,TAG_MULTI_LINE = 'M','id','S
 --  - 'T' tags which represent a type, like 'function' (TAG_TYPE)
 local known_tags = {
    param = 'M', see = 'M', comment = 'M', usage = 'ML', ['return'] = 'M', field = 'M', author='M',set='M';
-   class = 'id', name = 'id', pragma = 'id', alias = 'id',
+   ldoc_class = 'id', name = 'id', pragma = 'id', alias = 'id',
    copyright = 'S', summary = 'S', description = 'S', release = 'S', license = 'S',
    fixme = 'S', todo = 'S', warning = 'S', raise = 'S', charset = 'S', within = 'S',
    ['local'] = 'N', export = 'N', private = 'N', constructor = 'N', static = 'N',include = 'S',
@@ -151,7 +151,7 @@ function doc.expand_annotation_item (tags, last_item)
    for tag, value in pairs(tags) do
       if known_tags._annotation_tags[tag] then
          tags.summary = nil
-         tags:add('class','annotation')
+         tags:add('ldoc_class','annotation')
          tags:add('summary',value)
          tags:add('name',item_name..'-'..tag..acount)
          acount = acount + 1
@@ -518,7 +518,7 @@ function Item:set_tag (tag,value)
       if type(value) == 'table' then
          if value.append then -- it was a List!
             -- such tags are _not_ multiple, e.g. name
-            if tag == 'class' and value:contains 'example' then
+            if tag == 'ldoc_class' and value:contains 'example' then
                self:error("cannot use 'example' tag for functions or tables. Use 'usage'")
             else
                self:error("'"..tag.."' cannot have multiple values; "..tostring(value))
@@ -575,7 +575,7 @@ function Item.check_tag(tags,tag, value, modifiers)
    end
    local ttype = known_tags[tag]
    if ttype == TAG_TYPE then
-      tags:add('class',tag)
+      tags:add('ldoc_class',tag)
       tag = 'name'
    end
    return tag, value, modifiers
@@ -637,7 +637,7 @@ function Item:finish()
    if doc.ldoc.strip_metamethod_prefix then
       self.name = self.name:gsub('.*:', '')
    end
-   self.type = read_del(tags,'class')
+   self.type = read_del(tags,'ldoc_class')
    self.modifiers = extract_tag_modifiers(tags)
    self.usage = read_del(tags,'usage')
    tags.see = read_del(tags,'see')
