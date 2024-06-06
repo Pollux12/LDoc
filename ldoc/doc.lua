@@ -724,7 +724,7 @@ function Item:finish()
                      if not varargs then
                         self:warning("extra param with no formal argument: "..quote(pname))
                      end
-                  elseif pname ~= fargs[k] then
+                  elseif pname ~= fargs[k] and ("_" .. pname) ~= fargs[k] and pname ~= ("_" .. fargs[k]) then
                      self:warning("param and formal argument name mismatch: "..quote(pname).." "..quote(fargs[k]))
                   end
                end
