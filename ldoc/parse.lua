@@ -327,7 +327,7 @@ local function parse_file(fname, lang, package, args)
                      tags = {
                         summary = '',
                         name = 'returns...',
-                        class = 'function',
+                        ldoc_class = 'function',
                         ['return'] = ret,
                         param = parms
                      }
