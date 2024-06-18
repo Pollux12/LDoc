@@ -444,12 +444,12 @@ function File:add_document_section(title)
    local section = title:gsub('%W','_')
    self:new_item {
       name = section,
-      class = 'section',
+      ldoc_class = 'section',
       summary = title
    }
    self:new_item {
       name = 'dumbo',
-      class = 'function',
+      ldoc_class = 'function',
    }
    return section
 end

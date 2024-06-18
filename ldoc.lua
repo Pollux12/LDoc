@@ -566,7 +566,7 @@ local function prettify_source_files(files,class,linemap)
       local ftype = file_types[ext]
       if ftype then
          local item = add_special_project_entity(f,{
-            class = class,
+            ldoc_class = class,
          })
          -- wrap prettify for this example so it knows which file to blame
          -- if there's a problem
@@ -634,7 +634,7 @@ end
 if type(ldoc.readme) == 'table' then
    process_file_list(ldoc.readme, '*.md', function(f)
       local item, F = add_special_project_entity(f,{
-         class = 'topic'
+         ldoc_class = 'topic'
       }, markup.add_sections, ldoc.pretty_topic_names)
       -- add_sections above has created sections corresponding to the 2nd level
       -- headers in the readme, which are attached to the File. So
@@ -893,6 +893,7 @@ for _, key in ipairs(inheritable) do
          end
 
          local toadd = {}
+         local seen = {}
          while baseclass do
             local nextclass
             for innerCls in project[key]() do
@@ -923,6 +924,13 @@ for _, key in ipairs(inheritable) do
                end
             end
             baseclass = type(nextclass.tags.baseclass) == "table" and nextclass.tags.baseclass[1] or false
+
+            if seen[baseclass] then
+               print(cls.name, "infinate loops on", baseclass)
+               break
+            end
+
+            seen[baseclass] = true
          end
 
          for _, item in ipairs(toadd) do
