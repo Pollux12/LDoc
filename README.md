@@ -1,59 +1,71 @@
-# LDoc - A Lua Documentation Tool
+# LDoc (Garry's Mod fork)
 
-[![Luacheck](https://github.com/lunarmodules/LDoc/workflows/Luacheck/badge.svg)](https://github.com/lunarmodules/LDoc/actions)
+This is a maintained fork of LDoc tailored for Garry’s Mod codebases. It adds some experimental (but mostly working!) support for LuaLS annotations, Garry’s Mod realms, and repo-specific conveniences while remaining compatible with classic LDoc syntax and templates.
 
-Copyright (C) 2011-2012 Steve Donovan.
+Highlights:
+- Dual-style parsing: supports both LuaLS (---@param name type # desc) and LDoc (@tparam type name desc) via mapping and hacky workarounds
+- Garry’s Mod realm integration: infer client/server/shared from file prefixes (cl_, sv_, sh_) or via @realm
+- Customization preserved: aliases, new types, and custom tags from config.ld work across both styles, or at least they should
 
-## Rationale
+## Quick start
 
-This project grew out of the documentation needs of
-[Penlight](https://github.com/lunarmodules/Penlight) (and not always getting satisfaction
-with LuaDoc) and depends on Penlight itself. (This allowed me to _not_ write a lot of code.)
+1) Add a `config.ld` (see doc/doc.md for full options). Example minimal:
 
-The [API documentation](http://lunarmodules.github.com/Penlight/api/index.html) of Penlight
-is an example of a project using plain LuaDoc markup processed using LDoc.
+```lua
+dir = "docs/html"
+project = "My GMod Project"
+format = "markdown"
+-- Auto-detect both styles by default
+-- only_luals = true    -- force only LuaLS
+-- only_ldoc  = true    -- force only LDoc
+```
 
-LDoc is intended to be compatible with [LuaDoc](http://keplerproject.github.io/luadoc/) and
-thus follows the pattern set by the various *Doc tools:
+2) Annotate code (either style works):
 
-    --- Summary ends with a period.
-    -- Some description, can be over several lines.
-    -- @param p1 first parameter
-    -- @param p2 second parameter
-    -- @return a string value
-    -- @see second_fun
-    function mod1.first_fun(p1,p2)
-    end
+```lua
+--- Check if the given entity is a player
+--- @param ent Entity # The entity to check
+--- @return boolean # Whether the entity is a player
+function IsPlayer(ent)
+    return ent and ent:IsValid() and ent:IsPlayer()
+end
+```
 
-Tags such as `see` and `usage` are supported, and generally the names of functions and
-modules can be inferred from the code.
+3) Generate docs:
 
-LDoc is designed to give better diagnostics: if a `@see` reference cannot be found, then the
-line number of the reference is given.  LDoc knows about modules which do not use `module()`
-- this is important since this function has become deprecated in Lua 5.2. And you can avoid
-having to embed HTML in commments by using Markdown.
+```sh
+lua ldoc.lua .
+```
 
-LDoc will also work with Lua C extension code, and provides some convenient shortcuts.
+Output is written to `dir` (default `doc/`).
 
-An example showing the support for named sections and 'classes' is the [Winapi
-documentation](http://stevedonovan.github.com/winapi/api.html); this is generated from
-[winapi.l.c](https://github.com/stevedonovan/winapi/blob/master/winapi.l.c).
+## LuaLS parsing controls
 
-## Installation
+- Auto (default): both styles are parsed based on the comment content
+- Force only LuaLS: `only_luals = true`
+- Force only LDoc: `only_ldoc = true`
+- Prefer LuaLS with fallback: `luals = true, ldoc_compat = true`
+- Pure LuaLS: `luals = true` (no LDoc tag parsing in doc comments)
+- Disable realm inference: `auto_realm = false`
 
-This is straightforward; the only external dependency is
-[Penlight](https://github.com/lunarmodules/Penlight), which in turn needs
-[LuaFileSystem](http://keplerproject.github.com/luafilesystem/). These are already present
-in [Lua for Windows](https://github.com/rjpcomputing/luaforwindows), and Penlight is also available through [LuaRocks](https://luarocks.org/) as `luarocks install
-penlight`.
+See “LuaLS Annotation Support” in doc/doc.md for syntax and examples.
 
-Unpack the sources somewhere and make an alias to `ldoc.lua` on your path. That is, either
-an executable script called 'ldoc' like so:
+## Garry’s Mod specifics
 
-    lua /path/to/ldoc/ldoc.lua $*
+- Realm badges: use `@realm client|server|shared|menu|global|clmenu` or rely on filename prefixes
+- Custom types: `new_type`, `alias`, `tparam_alias` remain available and apply to both styles
+- Custom hooks/panels: define with `new_type("hook", ...)`, `new_type("panel", ...)` and they’ll render in their own sections
 
-Or a batch file called 'ldoc.bat':
+## Compatibility and upstream
 
-    @echo off
-    lua \path\to\ldoc\ldoc.lua %*
+This fork is based on lunarmodules/LDoc and aims to remain compatible with common LDoc features while adding LuaLS and GMod-specific ergonomics. If you hit regressions, please open an issue with a small repro.
 
+License remains as in upstream LDoc; see COPYRIGHT.
+
+## Testing and running
+
+I prefer just being able to quickly build the docs vs weird automated tests for this. Run these in terminal which has Lua in path:
+
+`luarocks remove ldoc` - Remove LDoc if it already exists
+`luarocks make` - Build LDoc
+`ldoc.lua <path>` - Run LDoc against path

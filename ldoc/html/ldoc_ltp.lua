@@ -97,6 +97,23 @@ return [==[
 # elseif module then -- module documentation
 <h1>$(ldoc.module_typename(module)) <code>$(module.name)</code></h1>
 <p>$(M(module.summary,module))</p>
+#   if module._baseclass_mod then
+<h3>Inheritance</h3>
+<p>
+    Inherits from <a href="$(ldoc.ref_to_module(module._baseclass_mod))">$(module._baseclass_mod.name)</a>.
+</p>
+#     if module._inherit_chain and #module._inherit_chain > 0 then
+<p>
+    Chain:
+#       for i,base in ldoc.ipairs(module._inherit_chain) do
+        <a href="$(ldoc.ref_to_module(base))">$(base.name)</a>
+#         if i < #module._inherit_chain then
+            &rarr;
+#         end
+#       end
+</p>
+#     end
+#   end
 <p>$(M(module.description,module))</p>
 #   if module.tags.include then
         $(M(ldoc.include_file(module.tags.include)))

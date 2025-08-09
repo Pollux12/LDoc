@@ -23,7 +23,8 @@ local tools = require 'ldoc.tools'
 local markup = require 'ldoc.markup'
 local prettify = require 'ldoc.prettify'
 local doc = require 'ldoc.doc'
-local template = require (doc.ldoc.use_new_templates and 'resty.template.safe' or 'pl.template')
+local lfs = require 'lfs'
+local template = require(doc.ldoc.use_new_templates and 'resty.template.safe' or 'pl.template')
 local unpack = utils.unpack
 local html = {}
 
@@ -43,11 +44,11 @@ local function get_module_info(m)
    local info = OrderedMap()
    for tag in doc.module_info_tags() do
       local val = m.tags[tag]
-      if type(val)=='table' then
-         val = table.concat(val,',')
+      if type(val) == 'table' then
+         val = table.concat(val, ',')
       end
       tag = stringx.title(tag)
-      info:set(tag,val)
+      info:set(tag, val)
    end
    if #info:keys() > 0 then
       return info
@@ -60,24 +61,27 @@ function html.generate_output(ldoc, args, project)
    local check_directory, check_file, writefile = tools.check_directory, tools.check_file, tools.writefile
    local original_ldoc
 
-   local function save_and_set_ldoc (set)
+   local function save_and_set_ldoc(set)
       if not set then return end
       if not original_ldoc then
          original_ldoc = tablex.copy(ldoc)
       end
       for s in set:iter() do
-         local var,val = s:match('([^=]+)=(.+)')
+         local var, val = s:match('([^=]+)=(.+)')
          local num = tonumber(val)
-         if num then val = num
-         elseif val == 'true' then val = true
-         elseif val == 'false' then val = false
+         if num then
+            val = num
+         elseif val == 'true' then
+            val = true
+         elseif val == 'false' then
+            val = false
          end
-         print('setting',var,val)
+         print('setting', var, val)
          ldoc[var] = val
       end
    end
 
-   local function restore_ldoc ()
+   local function restore_ldoc()
       if original_ldoc then
          ldoc = original_ldoc
       end
@@ -88,7 +92,7 @@ function html.generate_output(ldoc, args, project)
    end
 
    function ldoc.prettify(str)
-      return prettify.code('lua','usage',str,0,false)
+      return prettify.code('lua', 'usage', str, 0, false)
    end
 
    -- Item descriptions come from combining the summary and description fields
@@ -96,15 +100,15 @@ function html.generate_output(ldoc, args, project)
       return tools.join(' ', item.summary, item.description)
    end
 
-   function ldoc.module_name (mod)
+   function ldoc.module_name(mod)
       local name = mod.name
       if args.unqualified and (mod.type == 'module' or mod.type == 'classmod') then -- leave out package
-         name = name:gsub('^.-%.','')
+         name = name:gsub('^.-%.', '')
       elseif mod.type == 'topic' then
          if mod.display_name then
             name = mod.display_name
          else -- leave out md extension
-            name = name:gsub('%..*$','')
+            name = name:gsub('%..*$', '')
          end
       end
       return name
@@ -121,7 +125,7 @@ function html.generate_output(ldoc, args, project)
       elseif doc.Module:class_of(see) then
          return ldoc.ref_to_module(see)
       else
-         return ldoc.ref_to_module(see.mod)..'#'..see.name
+         return ldoc.ref_to_module(see.mod) .. '#' .. see.name
       end
    end
 
@@ -129,72 +133,73 @@ function html.generate_output(ldoc, args, project)
    -- from the 'modules' etc directories. If we are in one of those directories,
    -- then linking to another kind is `../kind/name`; to the same kind is just `name`.
    -- If we are in the root, then it is `kind/name`.
-   function ldoc.ref_to_module (mod)
+   function ldoc.ref_to_module(mod)
       local base = "" -- default: same directory
       mod = mod or ldoc.module
       local kind, module = mod.kind, ldoc.module
-      local name = mod.name -- default: name of module
+      local name = mod.name             -- default: name of module
       if not ldoc.single then
-         if module then -- we are in kind/
+         if module then                 -- we are in kind/
             if module.type ~= type then -- cross ref to ../kind/
-               base = (ldoc.pretty_urls and '../../' or '../')..kind..'/'
+               base = (ldoc.pretty_urls and '../../' or '../') .. kind .. '/'
             end
          else -- we are in root: index
-            base = kind..'/'
+            base = kind .. '/'
          end
       else -- single module
          if mod == ldoc.single then
             name = ldoc.output
             if not ldoc.root then base = '../' end
          elseif ldoc.root then -- ref to other kinds (like examples)
-            base = kind..'/'
+            base = kind .. '/'
          else
             if module.type ~= type then -- cross ref to ../kind/
-               base = "../"..kind.."/"
+               base = "../" .. kind .. "/"
             end
          end
       end
       if ldoc.pretty_urls then
-         return ldoc.to_pretty_url(base..name)..'/'
+         return ldoc.to_pretty_url(base .. name) .. '/'
       else
-         return base..name..'.html'
+         return base .. name .. '.html'
       end
    end
 
-   function ldoc.include_file (file)
-      local text,_ = utils.readfile(file)
-      if not text then quit("unable to include "..file)
+   function ldoc.include_file(file)
+      local text, _ = utils.readfile(file)
+      if not text then
+         quit("unable to include " .. file)
       else
          return text
       end
    end
 
    -- these references are never from the index...?
-   function ldoc.source_ref (fun)
+   function ldoc.source_ref(fun)
       local modname = fun.module.name
-      local pack,name = tools.split_dotted_name(modname)
+      local pack, name = tools.split_dotted_name(modname)
       if not pack then
          name = modname
       end
-      return (ldoc.single and "" or "../").."source/"..name..'.lua.html#'..fun.lineno
+      return (ldoc.single and "" or "../") .. "source/" .. name .. '.lua.html#' .. fun.lineno
    end
 
    function ldoc.use_li(ls)
-      if #ls > 1 then return '<li>','</li>' else return '','' end
+      if #ls > 1 then return '<li>', '</li>' else return '', '' end
    end
 
    function ldoc.default_display_name(item)
       -- Project-level items:
       if doc.project_level(item.type) then
-        return ldoc.module_name(item)
+         return ldoc.module_name(item)
       end
       -- Module-level items:
       local name = item.display_name or item.name
       if item.type == 'function' or item.type == 'lfunction' or item.type == "hook" then
          if not ldoc.no_space_before_args then
-            name = name..' '
+            name = name .. ' '
          end
-         return name..item.args
+         return name .. item.args
       else
          return name
       end
@@ -202,36 +207,36 @@ function html.generate_output(ldoc, args, project)
 
    function ldoc.display_name(item)
       if ldoc.custom_display_name_handler then
-        return ldoc.custom_display_name_handler(item, ldoc.default_display_name)
+         return ldoc.custom_display_name_handler(item, ldoc.default_display_name)
       else
-        return ldoc.default_display_name(item)
+         return ldoc.default_display_name(item)
       end
    end
 
    function ldoc.no_spaces(s)
-      s = s:gsub('%s*$','')
-      return (s:gsub('%W','_'))
+      s = s:gsub('%s*$', '')
+      return (s:gsub('%W', '_'))
    end
 
    function ldoc.module_typename(m)
       return doc.presentation_name(m.type)
    end
 
-   function ldoc.is_list (t)
+   function ldoc.is_list(t)
       return type(t) == 'table' and t.append
    end
 
-   function ldoc.strip_header (s)
+   function ldoc.strip_header(s)
       if not s then return s end
-      return s:gsub('^%s*#+%s+','')
+      return s:gsub('^%s*#+%s+', '')
    end
 
-   function ldoc.typename (tp)
+   function ldoc.typename(tp)
       if not tp or tp == '' or tp:match '^@' then return '' end
       local optional
       -- ?<type> is short for ?nil|<type>
       if tp:match("^%?") and not tp:match '|' then
-         tp = '?|'..tp:sub(2)
+         tp = '?|' .. tp:sub(2)
       end
       local tp2 = tp:match("%?|?(.*)")
       if tp2 then
@@ -242,31 +247,50 @@ function html.generate_output(ldoc, args, project)
       local types = {}
       for name in tp:gmatch("[^|]+") do
          local sym = name:match '([%w%.%:]+)'
-         local ref,_ = markup.process_reference(sym,true)
+         local ref, _ = markup.process_reference(sym, true)
          if ref then
             if ref.label and sym == name then
                name = ref.label
             end
-            types[#types+1] = ('<a class="type" href="%s">%s</a>'):format(ldoc.href(ref),name)
+            -- Ensure name is not nil before using it
+            if name then
+               types[#types + 1] = ('<a class="type" href="%s">%s</a>'):format(ldoc.href(ref), name)
+            end
          else
-            types[#types+1] = '<span class="type">'..name..'</span>'
+            -- Ensure name is not nil before using it
+            if name then
+               types[#types + 1] = '<span class="type">' .. name .. '</span>'
+            end
          end
       end
-      local names = table.concat(types, ", ", 1, math.max(#types-1, 1))
-      if #types > 1 then names = names.." or "..types[#types] end
+
+      -- Filter out any nil values from the types table
+      local filtered_types = {}
+      for i, type_str in ipairs(types) do
+         if type_str then
+            filtered_types[#filtered_types + 1] = type_str
+         end
+      end
+      types = filtered_types
+
+      local names = ""
+      if #types > 0 then
+         names = table.concat(types, ", ", 1, math.max(#types - 1, 1))
+         if #types > 1 then names = names .. " or " .. types[#types] end
+      end
       if optional then
          if names ~= '' then
-            if #types == 1 then names = "optional "..names end
+            if #types == 1 then names = "optional " .. names end
          else
             names = "optional"
-        end
+         end
       end
       return names
    end
 
    -- the somewhat tangled logic that controls whether a type appears in the
    -- navigation sidebar. (At least it's no longer in the template ;))
-   function ldoc.allowed_in_contents(type,module)
+   function ldoc.allowed_in_contents(type, module)
       local allowed = true
       if ldoc.kinds_allowed then
          allowed = ldoc.kinds_allowed[type]
@@ -276,14 +300,14 @@ function html.generate_output(ldoc, args, project)
       return allowed
    end
 
-   local function set_charset (ldoc,m)
+   local function set_charset(ldoc, m)
       m = m or ldoc.module
       ldoc.doc_charset = (m and m.tags.charset) or ldoc.charset
    end
 
-   local module_template,_ = utils.readfile (path.join(args.template,ldoc.templ))
+   local module_template, _ = utils.readfile(path.join(args.template, ldoc.templ))
    if not module_template then
-      quit("template not found at '"..args.template.."' Use -l to specify directory containing ldoc.ltp")
+      quit("template not found at '" .. args.template .. "' Use -l to specify directory containing ldoc.ltp")
    end
 
    -- Runs a template on a module to generate HTML page.
@@ -308,8 +332,8 @@ function html.generate_output(ldoc, args, project)
       end
       if not out then
          quit(("template failed for %s: %s"):format(
-               module and module.name or ldoc.output or "index",
-               err))
+            module and module.name or ldoc.output or "index",
+            err))
       end
       if ldoc.postprocess_html then
          out = ldoc.postprocess_html(out, module)
@@ -318,9 +342,9 @@ function html.generate_output(ldoc, args, project)
    end
 
    function ldoc.include_template(file) -- for use with old templating system
-      local text,e = utils.readfile(file)
+      local text, e = utils.readfile(file)
       if not text then
-         quit("unable to include template "..file)
+         quit("unable to include template " .. file)
          return
       end
 
@@ -338,7 +362,7 @@ function html.generate_output(ldoc, args, project)
    -- documentation for that module.
    ldoc.module = ldoc.single
    if ldoc.single and args.one then
-      ldoc.kinds_allowed = {module = true, topic = true}
+      ldoc.kinds_allowed = { module = true, topic = true }
       ldoc.one = true
    end
    ldoc.root = true
@@ -364,27 +388,27 @@ function html.generate_output(ldoc, args, project)
          -- luacheck: pop
       end
 
-      local file = require'pl.file'
+      local file = require 'pl.file'
       file.copy(ldoc.icon, dir_data)
    end
 
    args.dir = args.dir .. path.sep
 
    if css then -- has CSS been copied?
-      check_file(args.dir..css, path.join(args.style,css))
+      check_file(args.dir .. css, path.join(args.style, css))
    end
 
    if custom_css then -- has custom CSS been copied?
-      check_file(args.dir..custom_css, custom_css)
+      check_file(args.dir .. custom_css, custom_css)
    end
 
    -- write out the module index
    out = cleanup_whitespaces(out)
 
    if ldoc.pretty_urls then
-      writefile(args.dir..'index.html',out)
+      writefile(args.dir .. 'index.html', out)
    else
-      writefile(args.dir..args.output..args.ext,out)
+      writefile(args.dir .. args.output .. args.ext, out)
    end
 
    -- in single mode, we exclude any modules since the module has been done;
@@ -393,7 +417,7 @@ function html.generate_output(ldoc, args, project)
    for kind, modules in project() do
       local lkind = kind:lower()
       if not ldoc.single or ldoc.single and lkind ~= 'modules' then
-         mods:append {kind, lkind, modules}
+         mods:append { kind, lkind, modules }
       end
    end
 
@@ -401,14 +425,14 @@ function html.generate_output(ldoc, args, project)
    -- note that we reset the internal ordering of the 'kinds' so that
    -- e.g. when reading a topic the other Topics will be listed first.
    if css then
-      ldoc.css = (ldoc.pretty_urls and '../../' or '../')..css
+      ldoc.css = (ldoc.pretty_urls and '../../' or '../') .. css
    end
    if custom_css then
-      ldoc.custom_css = '../'..custom_css
+      ldoc.custom_css = '../' .. custom_css
    end
    for m in mods:iter() do
       local kind, lkind, modules = unpack(m)
-      check_directory(args.dir..lkind)
+      check_directory(args.dir .. lkind)
       if not ldoc.no_viewed_topic_at_top then
          project:put_kind_first(kind)
       end
@@ -426,16 +450,16 @@ function html.generate_output(ldoc, args, project)
          end
          local out = templatize(module_template, ldoc, m)
          if ldoc.pretty_urls then
-            local base = args.dir..ldoc.to_pretty_url(lkind..'/'..m.name)
+            local base = args.dir .. ldoc.to_pretty_url(lkind .. '/' .. m.name)
             check_directory(base)
-            writefile(base..'/index.html',out)
+            writefile(base .. '/index.html', out)
          else
-            writefile(args.dir..lkind..'/'..m.name..args.ext,out)
+            writefile(args.dir .. lkind .. '/' .. m.name .. args.ext, out)
          end
          restore_ldoc()
       end
    end
-   if not args.quiet then print('output written to '..tools.abspath(args.dir)) end
+   if not args.quiet then print('output written to ' .. tools.abspath(args.dir)) end
 end
 
 return html

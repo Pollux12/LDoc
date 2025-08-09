@@ -17,7 +17,7 @@ local quit = utils.quit
 
 -- at rendering time, can access the ldoc table from any module item,
 -- or the item itself if it's a module
-function M.item_ldoc (item)
+function M.item_ldoc(item)
    local mod = item and (item.module or item)
    return mod and mod.ldoc
 end
@@ -27,14 +27,14 @@ end
 -- only over functions or tables, etc.  If the list of item has a module
 -- with a context, then use that to pre-sort the fltered items.
 -- (something rather similar exists in LuaDoc)
-function M.type_iterator (list,field,value)
+function M.type_iterator(list, field, value)
    return function()
       local fls = list:filter(function(item)
          return item[field] == value
       end)
       local ldoc = M.item_ldoc(fls[1])
       if ldoc and ldoc.sort then
-         fls:sort(function(ia,ib)
+         fls:sort(function(ia, ib)
             return ia.name < ib.name
          end)
       end
@@ -60,7 +60,7 @@ M.KindMap = KindMap
 
 -- calling a KindMap returns an iterator. This returns the kind, the iterator
 -- over the items of that type, and the actual type tag value.
-function KindMap:__call ()
+function KindMap:__call()
    local i = 1
    local klass = self.klass
    return function()
@@ -72,43 +72,43 @@ function KindMap:__call ()
          if not kind then return nil end
       end
       i = i + 1
-      local type = klass.types_by_kind [kind].type
+      local type = klass.types_by_kind[kind].type
       return kind, self[kind], type
    end
 end
 
-function KindMap:put_kind_first (kind)
+function KindMap:put_kind_first(kind)
    -- find this kind in our kind list
    local kinds = self.klass.kinds
-   local idx = tablex.find(kinds,kind)
+   local idx = tablex.find(kinds, kind)
    -- and swop with the start!
    if idx then
-      kinds[1],kinds[idx] = kinds[idx],kinds[1]
+      kinds[1], kinds[idx] = kinds[idx], kinds[1]
    end
 end
 
-function KindMap:type_of (item)
+function KindMap:type_of(item)
    local klass = self.klass
    local kind = klass.types_by_tag[item.type]
-   return klass.types_by_kind [kind]
+   return klass.types_by_kind[kind]
 end
 
-function KindMap:get_section_description (kind)
+function KindMap:get_section_description(kind)
    return self.klass.descriptions[kind]
 end
 
-function KindMap:get_item (kind)
+function KindMap:get_item(kind)
    return self.klass.items_by_kind[kind]
 end
 
 -- called for each new item. It does not actually create separate lists,
 -- (although that would not break the interface) but creates iterators
 -- for that item type if not already created.
-function KindMap:add (item,items,description)
-   local group = item[self.fieldname] -- which wd be item's type or section
+function KindMap:add(item, items, description)
+   local group = item[self.fieldname]           -- which wd be item's type or section
    local kname = self.klass.types_by_tag[group] -- the kind name
    if not self[kname] then
-      self[kname] = M.type_iterator (items,self.fieldname,group)
+      self[kname] = M.type_iterator(items, self.fieldname, group)
       self.klass.descriptions[kname] = description
    end
    item.kind = kname:lower()
@@ -116,30 +116,29 @@ end
 
 -- KindMap has a 'class constructor' which is used to modify
 -- any new base class.
-function KindMap._class_init (klass)
-   klass.kinds = {} -- list in correct order of kinds
-   klass.types_by_tag = {} -- indexed by tag
+function KindMap._class_init(klass)
+   klass.kinds = {}         -- list in correct order of kinds
+   klass.types_by_tag = {}  -- indexed by tag
    klass.types_by_kind = {} -- indexed by kind
-   klass.descriptions = {} -- optional description for each kind
-   klass.items_by_kind = {}  -- some kinds are items
+   klass.descriptions = {}  -- optional description for each kind
+   klass.items_by_kind = {} -- some kinds are items
 end
 
-
-function KindMap.add_kind (klass,tag,kind,subnames,item)
+function KindMap.add_kind(klass, tag, kind, subnames, item)
    if not klass.types_by_kind[kind] then
       klass.types_by_tag[tag] = kind
-      klass.types_by_kind[kind] = {type=tag,subnames=subnames}
+      klass.types_by_kind[kind] = { type = tag, subnames = subnames }
       if item then
          klass.items_by_kind[kind] = item
       end
-      append(klass.kinds,kind)
+      append(klass.kinds, kind)
    end
 end
 
 ----- some useful utility functions ------
 
 function M.module_basepath()
-   local lpath = List.split(package.path,';')
+   local lpath = List.split(package.path, ';')
    for p in lpath:iter() do
       local p = path.dirname(p)
       if path.isabs(p) then
@@ -151,44 +150,46 @@ end
 -- split a qualified name into the module part and the name part,
 -- e.g 'pl.utils.split' becomes 'pl.utils' and 'split'. Also
 -- must understand colon notation!
-function M.split_dotted_name (s)
-   local s1,s2 = s:match '^(.+)[%.:](.+)$'
+function M.split_dotted_name(s)
+   local s1, s2 = s:match '^(.+)[%.:](.+)$'
    if s1 then -- we can split
-      return s1,s2
+      return s1, s2
    else
       return nil
    end
---~    local s1,s2 = path.splitext(s)
---~    if s2=='' then return nil
---~    else  return s1,s2:sub(2)
---~    end
+   --~    local s1,s2 = path.splitext(s)
+   --~    if s2=='' then return nil
+   --~    else  return s1,s2:sub(2)
+   --~    end
 end
 
 -- grab lines from a line iterator `iter` until the line matches the pattern.
 -- Returns the joined lines and the line, which may be nil if we run out of
 -- lines.
-function M.grab_while_not(iter,pattern)
+function M.grab_while_not(iter, pattern)
    local line = iter()
    local res = {}
    while line and not line:match(pattern) do
-      append(res,line)
+      append(res, line)
       line = iter()
    end
-   res = table.concat(res,'\n')
-   return res,line
+   res = table.concat(res, '\n')
+   return res, line
 end
 
-
-function M.extract_identifier (value)
+function M.extract_identifier(value)
+   if not value or type(value) ~= 'string' then
+      return nil, nil -- Handle nil values and non-string values gracefully
+   end
    return value:match('([%.:%-_%w]+)(.*)$')
 end
 
-function M.identifier_list (ls)
+function M.identifier_list(ls)
    local ns = List()
-   if type(ls) == 'string' then ls = List{ns} end
+   if type(ls) == 'string' then ls = List { ns } end
    for s in ls:iter() do
       if s:match ',' then
-         ns:extend(List.split(s,'[,%s]+'))
+         ns:extend(List.split(s, '[,%s]+'))
       else
          ns:append(s)
       end
@@ -196,8 +197,8 @@ function M.identifier_list (ls)
    return ns
 end
 
-function M.strip (s)
-   return s:gsub('^%s+',''):gsub('%s+$','')
+function M.strip(s)
+   return s:gsub('^%s+', ''):gsub('%s+$', '')
 end
 
 -- Joins strings using a separator.
@@ -211,50 +212,50 @@ end
 -- where "conventional" solutions (".." or table.concat) would result
 -- in a spurious space.
 function M.join(sep, ...)
-  local contents = {}
-  for i = 1, select('#', ...) do
-    local value = select(i, ...)
-    if value and value ~= "" then
-      contents[#contents + 1] = value
-    end
-  end
-  return table.concat(contents, sep)
+   local contents = {}
+   for i = 1, select('#', ...) do
+      local value = select(i, ...)
+      if value and value ~= "" then
+         contents[#contents + 1] = value
+      end
+   end
+   return table.concat(contents, sep)
 end
 
 function M.check_directory(d)
    if not path.isdir(d) then
       if not dir.makepath(d) then
-         quit("Could not create "..d.." directory")
+         quit("Could not create " .. d .. " directory")
       end
    end
 end
 
-function M.check_file (f,original)
-    if not path.exists(f)
+function M.check_file(f, original)
+   if not path.exists(f)
        or not path.exists(original)
        or path.getmtime(original) > path.getmtime(f) then
-      local text,err = utils.readfile(original)
+      local text, err = utils.readfile(original)
       local _
       if text then
-         _,err = utils.writefile(f,text)
+         _, err = utils.writefile(f, text)
       end
       if err then
-         quit("Could not copy "..original.." to "..f)
+         quit("Could not copy " .. original .. " to " .. f)
       end
    end
 end
 
-function M.writefile(name,text)
-   local f,err = io.open(name,"wb")
---~    local ok,err = utils.writefile(name,text)
+function M.writefile(name, text)
+   local f, err = io.open(name, "wb")
+   --~    local ok,err = utils.writefile(name,text)
    if err then quit(err) end
    f:write(text)
    f:close()
 end
 
-function M.name_of (lpath)
+function M.name_of(lpath)
    local _
-   lpath,_ = path.splitext(lpath)
+   lpath, _ = path.splitext(lpath)
    return lpath
 end
 
@@ -276,13 +277,13 @@ function M.find_realm(fpath)
    return nil
 end
 
-function M.this_module_name (basename,fname)
+function M.this_module_name(basename, fname)
    if basename == '' then
       return M.name_of(fname)
    end
    basename = path.abspath(basename)
-   if basename:sub(-1,-1) ~= path.sep then
-      basename = basename..path.sep
+   if basename:sub(-1, -1) ~= path.sep then
+      basename = basename .. path.sep
    end
 
    if fname:match("plugins") then
@@ -291,10 +292,37 @@ function M.this_module_name (basename,fname)
       basename = basename:gsub("gamemode", "entities")
    end
 
-   local lpath,cnt = fname:gsub('^'..utils.escape(basename),'')
+   local lpath, cnt = fname:gsub('^' .. utils.escape(basename), '')
    --print('deduce',lpath,cnt,basename)
-   if cnt ~= 1 then quit("module(...) name deduction failed: base "..basename.." "..fname) end
-   lpath = lpath:gsub(path.sep,'.')
+   if cnt ~= 1 then
+      -- Fallback: try to extract a reasonable module name from common roots
+      local rel = fname
+      -- Normalize separators to '/'
+      rel = rel:gsub('\\', '/')
+      -- Try to cut off everything up to known roots
+      local roots = { '/plugins/', '/gamemode/', '/lua/', '/entities/' }
+      for _, root in ipairs(roots) do
+         local i = rel:lower():find(root, 1, true)
+         if i then
+            rel = rel:sub(i + #root)
+            break
+         end
+      end
+      -- Remove leading known container directories to avoid duplicates
+      rel = rel:gsub('^entities/', '')
+      -- Convert to dotted module style
+      rel = rel:gsub('/', '.')
+      -- Remove extension
+      rel = M.name_of(rel)
+      rel = rel:gsub('%.init$', '')
+      -- Avoid accidental uppercase drive letters etc.
+      rel = rel:gsub('^%a:%.', '')
+      if rel == '' or rel:match('^%s*$') then
+         rel = M.name_of(fname)
+      end
+      return rel, nil
+   end
+   lpath = lpath:gsub(path.sep, '.')
 
    local name = M.name_of(lpath):gsub('%.init$', '')
    local foundtype = nil
@@ -342,96 +370,95 @@ function M.this_module_name (basename,fname)
    return name, foundtype
 end
 
-function M.find_existing_module (name, dname, searchfn)
-   local fullpath,lua = searchfn(name)
+function M.find_existing_module(name, dname, searchfn)
+   local fullpath, lua = searchfn(name)
    local mod = true
    if not fullpath then -- maybe it's a function reference?
       -- try again with the module part
-      local  mpath,fname = M.split_dotted_name(name)
+      local mpath, fname = M.split_dotted_name(name)
       if mpath then
-         fullpath,lua = searchfn(mpath)
+         fullpath, lua = searchfn(mpath)
       else
          fullpath = nil
       end
       if not fullpath then
-         return nil, "module or function '"..dname.."' not found on module path"
+         return nil, "module or function '" .. dname .. "' not found on module path"
       else
          mod = fname
       end
    end
-   if not lua then return nil, "module '"..name.."' is a binary extension" end
+   if not lua then return nil, "module '" .. name .. "' is a binary extension" end
    return fullpath, mod
 end
 
-function M.lookup_existing_module_or_function (name, docpath)
+function M.lookup_existing_module_or_function(name, docpath)
    -- first look up on the Lua module path
    local on_docpath
-   local fullpath, mod = M.find_existing_module(name,name,path.package_path)
+   local fullpath, mod = M.find_existing_module(name, name, path.package_path)
    -- no go; but see if we can find it on the doc path
    if not fullpath then
-      fullpath, mod = M.find_existing_module("ldoc.builtin." .. name,name,path.package_path)
+      fullpath, mod = M.find_existing_module("ldoc.builtin." .. name, name, path.package_path)
       on_docpath = true
---~       fullpath, mod = M.find_existing_module(name, function(name)
---~          local fpath = package.searchpath(name,docpath)
---~          return fpath,true  -- result must always be 'lua'!
---~       end)
+      --~       fullpath, mod = M.find_existing_module(name, function(name)
+      --~          local fpath = package.searchpath(name,docpath)
+      --~          return fpath,true  -- result must always be 'lua'!
+      --~       end)
    end
    return fullpath, mod, on_docpath -- `mod` can be the error message
 end
-
 
 --------- lexer tools -----
 
 local tnext = lexer.skipws
 
-local function type_of (tok) return tok and tok[1] or 'end' end
-local function value_of (tok) return tok[2] end
+local function type_of(tok) return tok and tok[1] or 'end' end
+local function value_of(tok) return tok[2] end
 
 -- This parses Lua formal argument lists. It will return a list of argument
 -- names, which also has a comments field, which will contain any commments
 -- following the arguments. ldoc will use these in addition to explicit
 -- param tags.
 
-function M.get_parameters (tok,endtoken,delim,lang)
+function M.get_parameters(tok, endtoken, delim, lang)
    tok = M.space_skip_getter(tok)
    local args = List()
    args.comments = {}
-   local ltl,tt = lexer.get_separated_list(tok,endtoken,delim)
+   local ltl, tt = lexer.get_separated_list(tok, endtoken, delim)
 
    if not ltl or not ltl[1] or #ltl[1] == 0 then return args end -- no arguments
 
    local strip_comment, extract_arg
 
    if lang then
-      strip_comment = utils.bind1(lang.trim_comment,lang)
-      extract_arg = utils.bind1(lang.extract_arg,lang)
+      strip_comment = utils.bind1(lang.trim_comment, lang)
+      extract_arg = utils.bind1(lang.extract_arg, lang)
    else
       strip_comment = function(text)
          return text:match("%s*%-%-+%s*(.*)")
       end
-      extract_arg = function(tl,idx)
+      extract_arg = function(tl, idx)
          idx = idx or 1
          local res = value_of(tl[idx])
          if res == '[' then -- we do allow array indices in tables now
-            res = '['..value_of(tl[idx + 1])..']'
+            res = '[' .. value_of(tl[idx + 1]) .. ']'
          end
          return res
       end
    end
 
-   local function set_comment (idx,tok)
+   local function set_comment(idx, tok)
       local text = stringx.rstrip(value_of(tok))
       text = strip_comment(text)
       local arg = args[idx]
       local current_comment = args.comments[arg]
       if current_comment then
-        text = current_comment .. " " .. text
+         text = current_comment .. " " .. text
       end
       args.comments[arg] = text
    end
 
-   local function add_arg (tl,idx)
-      local name, type = extract_arg(tl,idx)
+   local function add_arg(tl, idx)
+      local name, type = extract_arg(tl, idx)
       args:append(name)
       if type then
          if not args.types then args.types = List() end
@@ -439,7 +466,7 @@ function M.get_parameters (tok,endtoken,delim,lang)
       end
    end
 
-   for i = 1,#ltl do
+   for i = 1, #ltl do
       local tl = ltl[i] -- token list for argument
       if #tl > 0 then
          local j = 1
@@ -447,7 +474,7 @@ function M.get_parameters (tok,endtoken,delim,lang)
             -- the comments for the i-1 th arg are in the i th arg...
             if i > 1 then
                while type_of(tl[j]) == 'comment' do
-                  set_comment(i-1,tl[j])
+                  set_comment(i - 1, tl[j])
                   j = j + 1
                end
             else -- first comment however is for the function return comment!
@@ -455,10 +482,10 @@ function M.get_parameters (tok,endtoken,delim,lang)
                j = j + 1
             end
             if #tl > 1 then
-               add_arg(tl,j)
+               add_arg(tl, j)
             end
          else
-            add_arg(tl,1)
+            add_arg(tl, 1)
          end
          if i == #ltl and #tl > 1 then
             while j <= #tl and type_of(tl[j]) ~= 'comment' do
@@ -466,12 +493,12 @@ function M.get_parameters (tok,endtoken,delim,lang)
             end
             if j > #tl then break end -- was no comments!
             while type_of(tl[j]) == 'comment' do
-               set_comment(i,tl[j])
+               set_comment(i, tl[j])
                j = j + 1
             end
          end
       else
-         return nil,"empty argument"
+         return nil, "empty argument"
       end
    end
 
@@ -483,9 +510,9 @@ function M.get_parameters (tok,endtoken,delim,lang)
       local last_arg = args[n]
       if not args.comments[last_arg] then
          while true do
-            tt = {tok()}
+            tt = { tok() }
             if type_of(tt) == 'comment' then
-               set_comment(n,tt)
+               set_comment(n, tt)
             else
                break
             end
@@ -493,121 +520,119 @@ function M.get_parameters (tok,endtoken,delim,lang)
       end
    end
    -- return what token we ended on as well - can be token _past_ ')'
-   return args,tt[1],tt[2]
+   return args, tt[1], tt[2]
 end
 
 -- parse a Lua identifier - contains names separated by . and (optionally) :.
 -- Set `colon` to be the secondary separator, '' for none.
-function M.get_fun_name (tok,first,colon)
+function M.get_fun_name(tok, first, colon)
    local res = {}
-   local t,name,sep,_
+   local t, name, sep, _
    colon = colon or ':'
    if not first then
-      t,name = tnext(tok)
+      t, name = tnext(tok)
    else
-      t,name = 'iden',first
+      t, name = 'iden', first
    end
    if t ~= 'iden' then return nil end
-   t,sep = tnext(tok)
+   t, sep = tnext(tok)
    while sep == '.' or sep == colon do
-      append(res,name)
-      append(res,sep)
-      _,name = tnext(tok)
-      t,sep = tnext(tok)
+      append(res, name)
+      append(res, sep)
+      _, name = tnext(tok)
+      t, sep = tnext(tok)
    end
-   append(res,name)
-   return table.concat(res),t,sep
+   append(res, name)
+   return table.concat(res), t, sep
 end
 
 -- space-skipping version of token iterator
 function M.space_skip_getter(tok)
-   return function ()
-      local t,v = tok()
+   return function()
+      local t, v = tok()
       while t and t == 'space' do
-         t,v = tok()
+         t, v = tok()
       end
-      return t,v
+      return t, v
    end
 end
 
-function M.quote (s)
-   return "'"..s.."'"
+function M.quote(s)
+   return "'" .. s .. "'"
 end
 
 -- The PL Lua lexer does not do block comments
 -- when used in line-grabbing mode, so this function grabs each line
 -- until we meet the end of the comment
-function M.grab_block_comment (v,tok,patt)
-   local res = {v}
+function M.grab_block_comment(v, tok, patt)
+   local res = { v }
    repeat
       v = lexer.getline(tok)
-      if v:match (patt) then break end
-      append(res,v)
-      append(res,'\n')
+      if v:match(patt) then break end
+      append(res, v)
+      append(res, '\n')
    until false
    res = table.concat(res)
    --print(res)
-   return 'comment',res
+   return 'comment', res
 end
 
 local prel = path.normcase('/[^/]-/%.%.')
 
 
-function M.abspath (f)
+function M.abspath(f)
    local count
    local res = path.normcase(path.abspath(f))
    while true do
-      res,count = res:gsub(prel,'')
+      res, count = res:gsub(prel, '')
       if count == 0 then break end
    end
    return res
 end
 
-function M.getallfiles(root,mask)
-   local res = List(dir.getallfiles(root,mask))
+function M.getallfiles(root, mask)
+   local res = List(dir.getallfiles(root, mask))
    res:sort()
    return res
 end
 
-function M.expand_file_list (list, mask)
+function M.expand_file_list(list, mask)
    local exclude_list = list.exclude and M.files_from_list(list.exclude, mask)
    local files = List()
-   local function process (f)
+   local function process(f)
       f = M.abspath(f)
       if not exclude_list or exclude_list and exclude_list:index(f) == nil then
          files:append(f)
       end
    end
-   for _,f in ipairs(list) do
+   for _, f in ipairs(list) do
       if path.isdir(f) then
-         local dfiles = M.getallfiles(f,mask)
+         local dfiles = M.getallfiles(f, mask)
          for f in dfiles:iter() do
             process(f)
          end
       elseif path.isfile(f) then
          process(f)
       else
-         quit("file or directory does not exist: "..M.quote(f))
+         quit("file or directory does not exist: " .. M.quote(f))
       end
    end
    return files
 end
 
-function M.process_file_list (list, mask, operation, ...)
-   local files = M.expand_file_list(list,mask)
+function M.process_file_list(list, mask, operation, ...)
+   local files = M.expand_file_list(list, mask)
    for f in files:iter() do
-      operation(f,...)
+      operation(f, ...)
    end
 end
 
-function M.files_from_list (list, mask)
+function M.files_from_list(list, mask)
    local excl = List()
-   M.process_file_list (list, mask, function(f)
+   M.process_file_list(list, mask, function(f)
       excl:append(f)
    end)
    return excl
 end
-
-
 
 return tools

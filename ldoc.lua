@@ -36,7 +36,7 @@ app.require_here()
 
 --- @usage
 local usage = [[
-ldoc, a documentation generator for Lua, v]]..version..[[
+ldoc, a documentation generator for Lua, v]] .. version .. [[
 
   Invocation:
     ldoc [options] <file>
@@ -74,6 +74,8 @@ ldoc, a documentation generator for Lua, v]]..version..[[
     --tags		(default none) show all references to given tags, comma-separated
     --fatalwarnings	non-zero exit status on any warning
     --testing		reproducible build; no date or version on output
+    --luals		enable LuaLS annotation parsing (default auto-detect)
+    --ldoc_compat	enable LDoc annotation parsing alongside LuaLS (default false)
 
   <file> (string) source file or directory containing source
 
@@ -90,7 +92,7 @@ local global = require 'ldoc.builtin.globals'
 local markup = require 'ldoc.markup'
 local parse = require 'ldoc.parse'
 local KindMap = tools.KindMap
-local Item,File = doc.Item,doc.File
+local Item, File = doc.Item, doc.File
 local quit = utils.quit
 
 if args.version then
@@ -102,7 +104,7 @@ end
 local ModuleMap = class(KindMap)
 doc.ModuleMap = ModuleMap
 
-function ModuleMap:_init ()
+function ModuleMap:_init()
    self.klass = ModuleMap
    self.fieldname = 'section'
 end
@@ -110,7 +112,7 @@ end
 local ProjectMap = class(KindMap)
 ProjectMap.project_level = true
 
-function ProjectMap:_init ()
+function ProjectMap:_init()
    self.klass = ProjectMap
    self.fieldname = 'type'
 end
@@ -137,7 +139,7 @@ local ldoc = { charset = 'UTF-8', version = version }
 
 local known_types, kind_names = {}
 
-local function lookup (itype,igroup,isubgroup)
+local function lookup(itype, igroup, isubgroup)
    local kn = kind_names[itype]
    known_types[itype] = true
    if kn then
@@ -151,31 +153,32 @@ local function lookup (itype,igroup,isubgroup)
    return itype, igroup, isubgroup
 end
 
-local function setup_kinds ()
+local function setup_kinds()
    kind_names = ldoc.kind_names or {}
 
-   ModuleMap:add_kind(lookup('function','Functions','Parameters'))
-   ModuleMap:add_kind(lookup('table','Tables','Fields'))
-   ModuleMap:add_kind(lookup('field','Fields'))
-   ModuleMap:add_kind(lookup('type','Types'))
-   ModuleMap:add_kind(lookup('lfunction','Local Functions','Parameters'))
-   ModuleMap:add_kind(lookup('annotation','Issues'))
+   ModuleMap:add_kind(lookup('function', 'Functions', 'Parameters'))
+   -- Ensure the Tables section is labeled correctly as 'Tables', not 'Fields'
+   ModuleMap:add_kind(lookup('table', 'Tables', 'Fields'))
+   ModuleMap:add_kind(lookup('field', 'Fields'))
+   ModuleMap:add_kind(lookup('type', 'Types'))
+   ModuleMap:add_kind(lookup('lfunction', 'Local Functions', 'Parameters'))
+   ModuleMap:add_kind(lookup('annotation', 'Issues'))
 
    ProjectMap:add_kind(lookup('panel', 'Panels'))
    ProjectMap:add_kind(lookup('item', 'Items'))
    ProjectMap:add_kind(lookup('sent', 'Entities'))
    ProjectMap:add_kind(lookup('swep', 'Weapons'))
    ProjectMap:add_kind(lookup('stool', 'Tools'))
-   ProjectMap:add_kind(lookup('module','Modules'))
-   ProjectMap:add_kind(lookup('script','Scripts'))
-   ProjectMap:add_kind(lookup('classmod','Classes'))
-   ProjectMap:add_kind(lookup('topic','Topics'))
-   ProjectMap:add_kind(lookup('example','Examples'))
-   ProjectMap:add_kind(lookup('file','Source'))
+   ProjectMap:add_kind(lookup('module', 'Modules'))
+   ProjectMap:add_kind(lookup('script', 'Scripts'))
+   ProjectMap:add_kind(lookup('classmod', 'Classes'))
+   ProjectMap:add_kind(lookup('topic', 'Topics'))
+   ProjectMap:add_kind(lookup('example', 'Examples'))
+   ProjectMap:add_kind(lookup('file', 'Source'))
 
    for k in pairs(kind_names) do
       if not known_types[k] then
-         quit("unknown item type "..tools.quote(k).." in kind_names")
+         quit("unknown item type " .. tools.quote(k) .. " in kind_names")
       end
    end
 end
@@ -185,29 +188,29 @@ end
 doc.ldoc = ldoc
 
 -- if the corresponding argument was the default, then any ldoc field overrides
-local function override (field,defval)
+local function override(field, defval)
    defval = defval or false
    if args[field] == defval and ldoc[field] ~= nil then args[field] = ldoc[field] end
 end
 
 -- aliases to existing tags can be defined. E.g. just 'p' for 'param'
-function ldoc.alias (a,tag)
-   doc.add_alias(a,tag)
+function ldoc.alias(a, tag)
+   doc.add_alias(a, tag)
 end
 
 -- standard aliases --
 
-ldoc.alias('tparam',{'param',modifiers={type="$1"}})
-ldoc.alias('treturn',{'return',modifiers={type="$1"}})
-ldoc.alias('tfield',{'field',modifiers={type="$1"}})
-ldoc.alias('chainable',{'return',modifiers={type='self'}})
+ldoc.alias('tparam', { 'param', modifiers = { type = "$1" } })
+ldoc.alias('treturn', { 'return', modifiers = { type = "$1" } })
+ldoc.alias('tfield', { 'field', modifiers = { type = "$1" } })
+ldoc.alias('chainable', { 'return', modifiers = { type = 'self' } })
 
-function ldoc.tparam_alias (name,type)
+function ldoc.tparam_alias(name, type)
    type = type or name
-   ldoc.alias(name,{'param',modifiers={type=type}})
+   ldoc.alias(name, { 'param', modifiers = { type = type } })
 end
 
-ldoc.alias ('error',doc.error_macro)
+ldoc.alias('error', doc.error_macro)
 
 ldoc.tparam_alias 'string'
 ldoc.tparam_alias 'number'
@@ -217,27 +220,42 @@ ldoc.tparam_alias 'func'
 ldoc.tparam_alias 'tab'
 ldoc.tparam_alias 'thread'
 
+-- Additional LuaLS-compatible type aliases
+ldoc.tparam_alias('integer', 'integer')
+ldoc.tparam_alias('boolean', 'boolean')
+-- NOTE: Do not alias '@function' or '@table' to parameter types, as these conflict
+-- with LDoc item tags '@function' and '@table'. Users should write '@tparam function'
+-- or '@tparam table' (or use LuaLS '@param name function/table') instead.
+-- ldoc.tparam_alias('function', 'function')
+-- ldoc.tparam_alias('table', 'table')
+ldoc.tparam_alias('array', 'any[]')
+ldoc.tparam_alias('entity', 'Entity')
+ldoc.tparam_alias('player', 'Player')
+
+-- LuaLS diagnostic support
+ldoc.tparam_alias('diagnostic')
+
 function ldoc.add_language_extension(ext, lang)
-   lang = (lang=='c' and cc) or (lang=='lua' and lua) or quit('unknown language')
-   if ext:sub(1,1) ~= '.' then ext = '.'..ext end
+   lang = (lang == 'c' and cc) or (lang == 'lua' and lua) or quit('unknown language')
+   if ext:sub(1, 1) ~= '.' then ext = '.' .. ext end
    file_types[ext] = lang
 end
 
-function ldoc.add_section (name, title, subname)
-   ModuleMap:add_kind(name,title,subname)
+function ldoc.add_section(name, title, subname)
+   ModuleMap:add_kind(name, title, subname)
 end
 
 -- new tags can be added, which can be on a project level.
-function ldoc.new_type (tag, header, project_level,subfield)
-   doc.add_tag(tag,doc.TAG_TYPE,project_level)
+function ldoc.new_type(tag, header, project_level, subfield)
+   doc.add_tag(tag, doc.TAG_TYPE, project_level)
    if project_level then
-      ProjectMap:add_kind(tag,header,subfield)
+      ProjectMap:add_kind(tag, header, subfield)
    else
-      ModuleMap:add_kind(tag,header,subfield)
+      ModuleMap:add_kind(tag, header, subfield)
    end
 end
 
-function ldoc.manual_url (url)
+function ldoc.manual_url(url)
    global.set_manual_url(url)
 end
 
@@ -246,30 +264,30 @@ function ldoc.custom_see_handler(pat, handler)
 end
 
 local ldoc_contents = {
-   'alias','add_language_extension','custom_tags','new_type','add_section', 'tparam_alias',
-   'file','project','title','package','icon','format','output','dir','ext', 'topics',
-   'one','style','template','description','examples', 'pretty', 'charset', 'plain',
-   'readme','all','manual_url', 'ignore', 'colon', 'sort', 'module_file','vars',
-   'boilerplate','merge', 'wrap', 'not_luadoc', 'template_escape','merge_error_groups', 'dumbbanners',
-   'no_return_or_parms','no_summary','full_description','backtick_references', 'custom_see_handler',
-   'no_space_before_args','simple_args_string','parse_extra','no_lua_ref','sort_modules','use_markdown_titles',
+   'alias', 'add_language_extension', 'custom_tags', 'new_type', 'add_section', 'tparam_alias',
+   'file', 'project', 'title', 'package', 'icon', 'format', 'output', 'dir', 'ext', 'topics',
+   'one', 'style', 'template', 'description', 'examples', 'pretty', 'charset', 'plain',
+   'readme', 'all', 'manual_url', 'ignore', 'colon', 'sort', 'module_file', 'vars',
+   'boilerplate', 'merge', 'wrap', 'not_luadoc', 'template_escape', 'merge_error_groups', 'dumbbanners',
+   'no_return_or_parms', 'no_summary', 'full_description', 'backtick_references', 'custom_see_handler',
+   'no_space_before_args', 'simple_args_string', 'parse_extra', 'no_lua_ref', 'sort_modules', 'use_markdown_titles',
    'unqualified', 'custom_display_name_handler', 'kind_names', 'custom_references', 'strip_metamethod_prefix',
-   'dont_escape_underscore','global_lookup','prettify_files','convert_opt', 'user_keywords', 'no_viewed_topic_at_top',
+   'dont_escape_underscore', 'global_lookup', 'prettify_files', 'convert_opt', 'user_keywords', 'no_viewed_topic_at_top',
    'postprocess_html', 'use_new_templates', 'pretty_urls', 'pretty_topic_names',
-   'custom_css','version',
-   'no_args_infer'
+   'custom_css', 'version',
+   'no_args_infer', 'luals', 'ldoc_compat'
 }
 ldoc_contents = tablex.makeset(ldoc_contents)
 
-local function loadstr (ldoc,txt)
+local function loadstr(ldoc, txt)
    local chunk, err
    -- Penlight's Lua 5.2 compatibility has wobbled over the years...
-   if not rawget(_G,'loadin') then -- Penlight 0.9.5
-       -- Penlight 0.9.7; no more global load() override
-      chunk,err = utils.load(txt,'config',nil,ldoc)
+   if not rawget(_G, 'loadin') then -- Penlight 0.9.5
+      -- Penlight 0.9.7; no more global load() override
+      chunk, err = utils.load(txt, 'config', nil, ldoc)
    else
       -- luacheck: push ignore 113
-      chunk,err = utils.load(txt, 'config', nil, ldoc)
+      chunk, err = utils.load(txt, 'config', nil, ldoc)
       -- luacheck: pop
    end
    return chunk, err
@@ -277,27 +295,27 @@ end
 
 -- any file called 'config.ld' found in the source tree will be
 -- handled specially. It will be loaded using 'ldoc' as the environment.
-local function read_ldoc_config (fname)
+local function read_ldoc_config(fname)
    local directory = path.dirname(fname)
    if directory == '' then
       directory = '.'
    end
    local chunk, err, _
    if args.filter == 'none' then
-      print('reading configuration from '..fname)
+      print('reading configuration from ' .. fname)
    end
-   local txt,not_found = utils.readfile(fname)
+   local txt, not_found = utils.readfile(fname)
    if txt then
-      chunk, err = loadstr(ldoc,txt)
+      chunk, err = loadstr(ldoc, txt)
       if chunk then
          if args.define ~= 'none' then ldoc[args.define] = true end
-         _,err = pcall(chunk)
+         _, err = pcall(chunk)
       end
-    end
-   if err then quit('error loading config file '..fname..': '..err) end
+   end
+   if err then quit('error loading config file ' .. fname .. ': ' .. err) end
    for k in pairs(ldoc) do
       if not ldoc_contents[k] then
-         quit("this config file field/function is unrecognized: "..k)
+         quit("this config file field/function is unrecognized: " .. k)
       end
    end
    return directory, not_found
@@ -311,16 +329,16 @@ File.list = file_list
 local config_dir
 
 
-local ldoc_dir = arg[0]:gsub('[^/\\]+$','')
-local doc_path = ldoc_dir..'/ldoc/builtin/?.lua'
+local ldoc_dir = arg[0]:gsub('[^/\\]+$', '')
+local doc_path = ldoc_dir .. '/ldoc/builtin/?.lua'
 
 -- ldoc -m is expecting a Lua package; this converts this to a file path
 if args.module then
    -- first check if we've been given a global Lua lib function
    if args.file:match '^%a+$' and global.functions[args.file] then
-      args.file = 'global.'..args.file
+      args.file = 'global.' .. args.file
    end
-   local fullpath,mod,_ = tools.lookup_existing_module_or_function (args.file, doc_path)
+   local fullpath, mod, _ = tools.lookup_existing_module_or_function(args.file, doc_path)
    if not fullpath then
       quit(mod)
    else
@@ -334,18 +352,18 @@ local abspath = tools.abspath
 -- a special case: 'ldoc .' can get all its parameters from config.ld
 if args.file == '.' then
    local err
-   config_dir,err = read_ldoc_config(args.config)
-   if err then quit("no "..quote(args.config).." found") end
+   config_dir, err = read_ldoc_config(args.config)
+   if err then quit("no " .. quote(args.config) .. " found") end
    local config_path = path.dirname(args.config)
    if config_path ~= '' then
-      print('changing to directory',config_path)
+      print('changing to directory', config_path)
       lfs.chdir(config_path)
    end
    args.file = ldoc.file or '.'
    if args.file == '.' then
       args.file = lfs.currentdir()
    elseif type(args.file) == 'table' then
-      for i,f in ipairs(args.file) do
+      for i, f in ipairs(args.file) do
          args.file[i] = abspath(f)
       end
    else
@@ -355,8 +373,8 @@ else
    -- user-provided config file
    if args.config ~= 'config.ld' then
       local err
-      config_dir,err = read_ldoc_config(args.config)
-      if err then quit("no "..quote(args.config).." found") end
+      config_dir, err = read_ldoc_config(args.config)
+      if err then quit("no " .. quote(args.config) .. " found") end
    end
    -- with user-provided file
    if args.file == nil then
@@ -366,13 +384,13 @@ else
 end
 
 if type(ldoc.custom_tags) == 'table' then -- custom tags
-  for i, custom in ipairs(ldoc.custom_tags) do
-    if type(custom) == 'string' then
-      custom = {custom}
-      ldoc.custom_tags[i] = custom
-    end
-    doc.add_tag(custom[1], 'ML')
-  end
+   for i, custom in ipairs(ldoc.custom_tags) do
+      if type(custom) == 'string' then
+         custom = { custom }
+         ldoc.custom_tags[i] = custom
+      end
+      doc.add_tag(custom[1], 'ML')
+   end
 end -- custom tags
 
 local source_dir = args.file
@@ -382,7 +400,7 @@ end
 if type(source_dir) == 'string' and path.isfile(source_dir) then
    source_dir = path.splitpath(source_dir)
 end
-source_dir = source_dir:gsub('[/\\]%.$','')
+source_dir = source_dir:gsub('[/\\]%.$', '')
 
 ---------- specifying the package for inferring module names --------
 -- If you use module(...), or forget to explicitly use @module, then
@@ -394,7 +412,7 @@ source_dir = source_dir:gsub('[/\\]%.$','')
 --  * 'NAME' explicitly give the base module package name
 --
 
-override ('package','.')
+override('package', '.')
 
 local function setup_package_base()
    if ldoc.package then args.package = ldoc.package end
@@ -403,10 +421,10 @@ local function setup_package_base()
    elseif args.package == '..' then
       args.package = path.splitpath(source_dir)
    elseif not args.package:find '[\\/]' then
-      local subdir,dir = path.splitpath(source_dir)
+      local subdir, dir = path.splitpath(source_dir)
       if dir == args.package then
          args.package = subdir
-      elseif path.isdir(path.join(source_dir,args.package)) then
+      elseif path.isdir(path.join(source_dir, args.package)) then
          args.package = source_dir
       else
          quit("args.package is not the name of the source directory")
@@ -423,13 +441,13 @@ end
 if ldoc.ignore then args.ignore = true end
 if ldoc.dumbbanners then args.dumbbanners = true end
 
-local function process_file (f, flist)
+local function process_file(f, flist)
    local ext = path.extension(f)
    local ftype = file_types[ext]
    if ftype then
       if args.verbose then print(f, ftype, args) end
       ftype.extra = ldoc.parse_extra or {}
-      local F,err = parse.file(f,ftype,args)
+      local F, err = parse.file(f, ftype, args)
       if err then
          if F then
             F:warning("internal LDoc error")
@@ -451,6 +469,8 @@ override 'not_luadoc'
 override 'module_file'
 override 'boilerplate'
 override 'all'
+override 'luals'
+override 'ldoc_compat'
 
 setup_kinds()
 
@@ -465,14 +485,14 @@ end
 
 -- ldoc.module_file establishes a partial ordering where the
 -- master module files are processed first.
-local function reorder_module_file ()
+local function reorder_module_file()
    if ldoc.module_file then
       local mf = {}
       for mname, f in pairs(ldoc.module_file) do
          local fullpath = abspath(f)
          mf[fullpath] = true
       end
-      return function(x,y)
+      return function(x, y)
          return mf[x] and not mf[y]
       end
    end
@@ -481,7 +501,7 @@ end
 -- process files, optionally in order that respects master module files
 local function process_all_files(files)
    local sortfn = reorder_module_file()
-   local files = tools.expand_file_list(files,'*.*')
+   local files = tools.expand_file_list(files, '*.*')
    if sortfn then files:sort(sortfn) end
    for f in files:iter() do
       process_file(f, file_list)
@@ -492,30 +512,28 @@ end
 if type(args.file) == 'table' then
    -- this can only be set from config file so we can assume config is already read
    process_all_files(args.file)
-
 elseif path.isdir(args.file) then
    -- use any configuration file we find, if not already specified
    if not config_dir then
-      local files = List(dir.getallfiles(args.file,'*.*'))
+      local files = List(dir.getallfiles(args.file, '*.*'))
       local config_files = files:filter(function(f)
          return path.basename(f) == args.config
       end)
       if #config_files > 0 then
          config_dir = read_ldoc_config(config_files[1])
          if #config_files > 1 then
-            print('warning: other config files found: '..config_files[2])
+            print('warning: other config files found: ' .. config_files[2])
          end
       end
    end
 
-   process_all_files({args.file})
-
+   process_all_files({ args.file })
 elseif path.isfile(args.file) then
    -- a single file may be accompanied by a config.ld in the same dir
    if not config_dir then
       config_dir = path.dirname(args.file)
       if config_dir == '' then config_dir = '.' end
-      local config = path.join(config_dir,args.config)
+      local config = path.join(config_dir, args.config)
       if path.isfile(config) then
          read_ldoc_config(config)
       end
@@ -523,13 +541,13 @@ elseif path.isfile(args.file) then
    process_file(args.file, file_list)
    if #file_list == 0 then quit "unsupported file extension" end
 else
-   quit ("file or directory does not exist: "..quote(args.file))
+   quit("file or directory does not exist: " .. quote(args.file))
 end
 
 
 -- create the function that renders text (descriptions and summaries)
 -- (this also will initialize the code prettifier used)
-override ('format','plain')
+override('format', 'plain')
 override 'pretty'
 ldoc.markup = markup.create(ldoc, args.format, args.pretty, ldoc.user_keywords)
 
@@ -541,14 +559,14 @@ ldoc.markup = markup.create(ldoc, args.format, args.pretty, ldoc.user_keywords)
 -- They define an item 'body' field (containing the file's text) and a 'postprocess'
 -- field which is used later to convert them into HTML. They may contain @{ref}s.
 
-local function add_special_project_entity (f,tags,process,pretty)
+local function add_special_project_entity(f, tags, process, pretty)
    local F = File(f)
    tags.name = path.basename(f)
    if pretty then
-    tags.name = tags.name:gsub("%..+$", "")
+      tags.name = tags.name:gsub("%..+$", "")
    end
    local text = utils.readfile(f)
-   local item = F:new_item(tags,1)
+   local item = F:new_item(tags, 1)
    if process then
       text = process(F, text)
    end
@@ -558,32 +576,32 @@ local function add_special_project_entity (f,tags,process,pretty)
    return item, F
 end
 
-local function prettify_source_files(files,class,linemap)
+local function prettify_source_files(files, class, linemap)
    local prettify = require 'ldoc.prettify'
 
-   process_file_list (files, '*.*', function(f)
+   process_file_list(files, '*.*', function(f)
       local ext = path.extension(f)
       local ftype = file_types[ext]
       if ftype then
-         local item = add_special_project_entity(f,{
+         local item = add_special_project_entity(f, {
             ldoc_class = class,
          })
          -- wrap prettify for this example so it knows which file to blame
          -- if there's a problem
          local lang = ext:sub(2)
          item.postprocess = function(code)
-            return '<h2>'..path.basename(f)..'</h2>\n' ..
-                prettify.lua(lang,f,code,0,true,linemap and linemap[f])
+            return '<h2>' .. path.basename(f) .. '</h2>\n' ..
+                prettify.lua(lang, f, code, 0, true, linemap and linemap[f])
          end
       end
    end)
 end
 
 if type(ldoc.examples) == 'string' then
-   ldoc.examples = {ldoc.examples}
+   ldoc.examples = { ldoc.examples }
 end
 if type(ldoc.examples) == 'table' then
-   prettify_source_files(ldoc.examples,"example")
+   prettify_source_files(ldoc.examples, "example")
 end
 
 ldoc.is_file_prettified = {}
@@ -595,11 +613,11 @@ if ldoc.prettify_files then
       files:append(F.filename)
       local mod = F.modules[1]
       if mod then
-        local ls = List()
-        for item in mod.items:iter() do
-           ls:append(item.lineno)
-        end
-        linemap[F.filename] = ls
+         local ls = List()
+         for item in mod.items:iter() do
+            ls:append(item.lineno)
+         end
+         linemap[F.filename] = ls
       end
    end
 
@@ -614,26 +632,26 @@ if ldoc.prettify_files then
             print("Notice: if you only want to prettify files in `show`, then set prettify_files to `show/`")
          end
       else
-         files = tools.expand_file_list({ldoc.prettify_files}, '*.*')
+         files = tools.expand_file_list({ ldoc.prettify_files }, '*.*')
       end
    end
 
    ldoc.is_file_prettified = tablex.makeset(files)
-   prettify_source_files(files,"file",linemap)
+   prettify_source_files(files, "file", linemap)
 end
 
 if args.simple then
-    ldoc.no_return_or_parms=true
-    ldoc.no_summary=true
+   ldoc.no_return_or_parms = true
+   ldoc.no_summary = true
 end
 
 ldoc.readme = ldoc.readme or ldoc.topics
 if type(ldoc.readme) == 'string' then
-   ldoc.readme = {ldoc.readme}
+   ldoc.readme = { ldoc.readme }
 end
 if type(ldoc.readme) == 'table' then
    process_file_list(ldoc.readme, '*.md', function(f)
-      local item, F = add_special_project_entity(f,{
+      local item, F = add_special_project_entity(f, {
          ldoc_class = 'topic'
       }, markup.add_sections, ldoc.pretty_topic_names)
       -- add_sections above has created sections corresponding to the 2nd level
@@ -643,7 +661,7 @@ if type(ldoc.readme) == 'table' then
       if ldoc.use_markdown_titles then
          item.display_name = F.display_name
       end
-      item.postprocess = function(txt) return ldoc.markup(txt,F) end
+      item.postprocess = function(txt) return ldoc.markup(txt, F) end
    end)
 end
 
@@ -665,7 +683,7 @@ for F in file_list:iter() do
          end
       end
 
-      if not args.dumbbanners or not(count == 0 and #mod.items == 0 and not mod.body) then
+      if not args.dumbbanners or not (count == 0 and #mod.items == 0 and not mod.body) then
          if not first_module then first_module = mod end
          if doc.code_tag(mod.type) then modcount = modcount + 1 end
          module_list:append(mod)
@@ -683,7 +701,7 @@ end
 
 
 if ldoc.sort_modules then
-   table.sort(module_list,function(m1,m2)
+   table.sort(module_list, function(m1, m2)
       return m1.name < m2.name
    end)
 end
@@ -701,12 +719,12 @@ if args.module then
    if args.module == true then
       file_list[1]:dump(args.verbose)
    else
-      local M,name = module_list[1], args.module
+      local M, name = module_list[1], args.module
       local fun = M.items.by_name[name]
       if not fun then
-         fun = M.items.by_name[M.mod_name..':'..name]
+         fun = M.items.by_name[M.mod_name .. ':' .. name]
       end
-      if not fun then quit(quote(name).." is not part of "..quote(args.file)) end
+      if not fun then quit(quote(name) .. " is not part of " .. quote(args.file)) end
       fun:dump(true)
    end
    return
@@ -721,7 +739,7 @@ if args.dump then
 end
 if args.tags ~= 'none' then
    local tagset = {}
-   for t in stringx.split(args.tags,','):iter() do
+   for t in stringx.split(args.tags, ','):iter() do
       tagset[t] = true
    end
    for mod in module_list:iter() do
@@ -738,13 +756,13 @@ if args.filter ~= 'none' then
 end
 
 -- can specify format, output, dir and ext in config.ld
-override ('output','index')
-override ('dir','doc')
-override ('ext','html')
+override('output', 'index')
+override('dir', 'doc')
+override('ext', 'html')
 override 'one'
 
 -- handling styling and templates --
-ldoc.css, ldoc.templ = 'ldoc.css','ldoc.ltp'
+ldoc.css, ldoc.templ = 'ldoc.css', 'ldoc.ltp'
 
 -- special case: user wants to generate a .md file from a .lua file
 if args.ext == 'md' then
@@ -761,15 +779,15 @@ if args.ext == 'md' then
    args.ext = '.md'
 end
 
-local function match_bang (s)
+local function match_bang(s)
    if type(s) ~= 'string' then return end
    return s:match '^!(.*)'
 end
 
-local function style_dir (sname)
+local function style_dir(sname)
    local style = ldoc[sname]
    local dir
-   if style==false and sname == 'style' then
+   if style == false and sname == 'style' then
       args.style = false
       ldoc.css = false
    end
@@ -779,7 +797,7 @@ local function style_dir (sname)
       elseif type(style) == 'string' and (path.isdir(style) or match_bang(style)) then
          dir = style
       else
-         quit(quote(tostring(style)).." is not a directory")
+         quit(quote(tostring(style)) .. " is not a directory")
       end
       args[sname] = dir
    end
@@ -796,40 +814,40 @@ style_dir 'style'
 style_dir 'template'
 
 if not args.ext:find '^%.' then
-   args.ext = '.'..args.ext
+   args.ext = '.' .. args.ext
 end
 
 if args.one then
    ldoc.style = '!one'
 end
 
-local builtin_style, builtin_template = match_bang(args.style),match_bang(args.template)
+local builtin_style, builtin_template = match_bang(args.style), match_bang(args.template)
 if builtin_style or builtin_template then
    -- '!' here means 'use built-in templates'
-   local user = path.expanduser('~'):gsub('[/\\: ]','_')
-   local tmpdir = path.join(path.is_windows and os.getenv('TMP') or (os.getenv('TMPDIR') or '/tmp'),'ldoc'..user)
+   local user = path.expanduser('~'):gsub('[/\\: ]', '_')
+   local tmpdir = path.join(path.is_windows and os.getenv('TMP') or (os.getenv('TMPDIR') or '/tmp'), 'ldoc' .. user)
    if not path.isdir(tmpdir) then
       lfs.mkdir(tmpdir)
    end
-   local function tmpwrite (name)
-      local ok,text = pcall(require,'ldoc.html.'..name:gsub('%.','_'))
+   local function tmpwrite(name)
+      local ok, text = pcall(require, 'ldoc.html.' .. name:gsub('%.', '_'))
       if not ok then
-         quit("cannot find builtin template "..name.." ("..text..")")
+         quit("cannot find builtin template " .. name .. " (" .. text .. ")")
       end
-      if not utils.writefile(path.join(tmpdir,name),text) then
-         quit("cannot write to temp directory "..tmpdir)
+      if not utils.writefile(path.join(tmpdir, name), text) then
+         quit("cannot write to temp directory " .. tmpdir)
       end
    end
    if builtin_style then
       if builtin_style ~= '' then
-         ldoc.css = 'ldoc_'..builtin_style..'.css'
+         ldoc.css = 'ldoc_' .. builtin_style .. '.css'
       end
       tmpwrite(ldoc.css)
       args.style = tmpdir
    end
    if builtin_template then
       if builtin_template ~= '' then
-         ldoc.templ = 'ldoc_'..builtin_template..'.ltp'
+         ldoc.templ = 'ldoc_' .. builtin_template .. '.ltp'
       end
       tmpwrite(ldoc.templ)
       args.template = tmpdir
@@ -840,60 +858,58 @@ end
 if args.icon == 'none' then args.icon = nil end
 
 local function copy(t, lookup_table)
-	if ( t == nil ) then return nil end
+   if (t == nil) then return nil end
 
-	local out = {}
-	setmetatable( out, debug.getmetatable( t ) )
-	for i, v in pairs( t ) do
-		if ( type(v) ~= "table" ) then
-			out[ i ] = v
-		else
-			lookup_table = lookup_table or {}
-			lookup_table[ t ] = out
-			if ( lookup_table[ v ] ) then
-				out[ i ] = lookup_table[ v ] -- we already copied this table. reuse the copy.
-			else
-				out[ i ] = copy( v, lookup_table ) -- not yet copied. copy it.
-			end
-		end
-	end
-	return out
+   local out = {}
+   setmetatable(out, debug.getmetatable(t))
+   for i, v in pairs(t) do
+      if (type(v) ~= "table") then
+         out[i] = v
+      else
+         lookup_table = lookup_table or {}
+         lookup_table[t] = out
+         if (lookup_table[v]) then
+            out[i] = lookup_table[v]       -- we already copied this table. reuse the copy.
+         else
+            out[i] = copy(v, lookup_table) -- not yet copied. copy it.
+         end
+      end
+   end
+   return out
 end
 
 local pattern_escape_replacements = {
-	["("] = "%(",
-	[")"] = "%)",
-	["."] = "%.",
-	["%"] = "%%",
-	["+"] = "%+",
-	["-"] = "%-",
-	["*"] = "%*",
-	["?"] = "%?",
-	["["] = "%[",
-	["]"] = "%]",
-	["^"] = "%^",
-	["$"] = "%$",
-	["\0"] = "%z"
+   ["("] = "%(",
+   [")"] = "%)",
+   ["."] = "%.",
+   ["%"] = "%%",
+   ["+"] = "%+",
+   ["-"] = "%-",
+   ["*"] = "%*",
+   ["?"] = "%?",
+   ["["] = "%[",
+   ["]"] = "%]",
+   ["^"] = "%^",
+   ["$"] = "%$",
+   ["\0"] = "%z"
 }
 
-function string.PatternSafe( str )
-	return ( str:gsub( ".", pattern_escape_replacements ) )
+function string.PatternSafe(str)
+   return (str:gsub(".", pattern_escape_replacements))
 end
 
 ldoc.log = print
 ldoc.kinds = project
 
-local inheritable = {"Modules", "Classes", "Panels", "Items", "Entities", "Weapons", "Tools"}
+local inheritable = { "Modules", "Classes", "Panels", "Items", "Entities", "Weapons", "Tools" }
 for _, key in ipairs(inheritable) do
    if project[key] then
       for cls in project[key]() do
-         local baseclass = type(cls.tags.baseclass) == "table" and cls.tags.baseclass[1] or false
-         if baseclass then
-            print("inhereted class:", cls.name, baseclass)
-         end
-
-         local toadd = {}
+         local baseclass = type(cls.tags.baseclass) == "table" and cls.tags.baseclass[1] or (cls.tags.baseclass or false)
+         -- Gather inheritance info without copying members. We show a banner linking to the base class instead.
          local seen = {}
+         local chain = {}
+         local first_base = nil
          while baseclass do
             local nextclass
             for innerCls in project[key]() do
@@ -902,44 +918,25 @@ for _, key in ipairs(inheritable) do
                   break
                end
             end
-
-            if not nextclass then
-               break
-            end
-
-            for _, item in ipairs(nextclass.items) do
-               item = copy(item)
-               if item.name then
-                  item.name = string.gsub(item.name, baseclass:PatternSafe(), cls.name)
-               end
-               -- if item.description then
-               --    item.description = string.format("%s\nInhereted from @{%s}", item.description, baseclass)
-               -- else
-               --    item.description = string.format("Inhereted from @{%s}", baseclass)
-               -- end
-
-               if not item.inheretedFrom then
-                  item.inheretedFrom = baseclass
-                  table.insert(toadd, item)
-               end
-            end
+            if not nextclass then break end
+            if not first_base then first_base = nextclass end
+            table.insert(chain, nextclass)
             baseclass = type(nextclass.tags.baseclass) == "table" and nextclass.tags.baseclass[1] or false
-
-            if seen[baseclass] then
-               print(cls.name, "infinate loops on", baseclass)
-               break
-            end
-
-            seen[baseclass] = true
+            if baseclass and seen[baseclass] then break end
+            if baseclass then seen[baseclass] = true end
          end
-
-         for _, item in ipairs(toadd) do
-            if not cls.items.by_name[item.name] then
-               table.insert(cls.items, item)
-               cls.items.by_name[item.name] = item
-               cls.kinds:add(item, cls.items, item.section)
+         if first_base then
+            ldoc.log(string.format("linking inheritance: %s <- %s", first_base.name, cls.name))
+            -- Inject a small, template-agnostic inheritance note into the description so
+            -- custom templates still show a parent link even if they don't know about _baseclass_mod.
+            local marker = string.format("@{%s}", first_base.name)
+            local note = string.format("\n\nInherits from %s.", marker)
+            if type(cls.description) ~= 'string' or not cls.description:find(marker, 1, true) then
+               cls.description = (cls.description or '') .. note
             end
          end
+         cls._baseclass_mod = first_base
+         cls._inherit_chain = chain
 
          for _, item in ipairs(cls.items) do
             if item.retgroups then
@@ -968,13 +965,14 @@ if args.testing then
    ldoc.updatetime = "2015-01-01 12:00:00"
    ldoc.version = 'TESTING'
 elseif source_date_epoch == nil then
-  if args.date == 'system' then
-    ldoc.updatetime = os.date("%Y-%m-%d %H:%M:%S")
-  else
-    ldoc.updatetime = args.date
-  end
+   if args.date == 'system' then
+      ldoc.updatetime = os.date("%Y-%m-%d %H:%M:%S")
+   else
+      ldoc.updatetime = args.date
+   end
 else
-  ldoc.updatetime = os.date("!%Y-%m-%d %H:%M:%S",source_date_epoch)
+   local sde = tonumber(source_date_epoch)
+   ldoc.updatetime = os.date("!%Y-%m-%d %H:%M:%S", sde)
 end
 
 local html = require 'ldoc.html'
