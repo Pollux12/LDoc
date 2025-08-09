@@ -1,0 +1,16 @@
+
+<div class="landing">
+	<h1>FL CityRP Documentation</h1>
+</div>
+
+<div class="wrapper">
+	<p style="text-align: center;">Welcome to the documentation for FL CityRP</p>
+	<p style="text-align: center;">This documentation is based on Helix's.</p>
+	<h2>Links</h2>
+	<p>GitHub (cityrp): <a href="https://github.com/FearlessGaming/CityRP" target="_blank">Click here</a></p>
+	<p>Trello: <a href="https://trello.com/b/KfS45Eb9/fearlessrp-dev" target="_blank">Click here</a></p>
+	<p>Garry's Mod Wiki: <a href="https://wiki.facepunch.com/gmod/" target="_blank">Click here</a></p>
+	<h2>Note for Developers</h2>
+	<p>The sidebar shows the entire contents of the documentation. Libraries, functions, etc are all searchable with the search box at the top of the sidebar. Everything is still a WIP, so stuff may be missing.</p>
+	<p>Please refer to the Trello for further information.</p>
+</div>

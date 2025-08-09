@@ -1,0 +1,21 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run LDoc tests",
+			"type": "shell",
+			"command": "pwsh -NoProfile -Command \"if (Test-Path 'run-tests.lua') { if (Get-Command lua -ErrorAction SilentlyContinue) { lua run-tests.lua } else { Write-Host 'Lua not found'; exit 1 } } else { Write-Host 'No tests'; exit 0 }\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run LDoc tests",
+			"type": "shell",
+			"command": "if (Test-Path 'run-tests.lua') { if (Get-Command lua -ErrorAction SilentlyContinue) { lua run-tests.lua } else { Write-Host 'Lua not found'; exit 1 } } else { Write-Host 'No tests'; exit 0 }",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
